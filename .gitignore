@@ -1,0 +1,68 @@
+# ── Large geospatial / data files ─────────────────────────────────────────
+*.tif
+*.tiff
+*.geotiff
+*.nc          # NetCDF (IPCC/climate data)
+*.nc4
+*.hdf
+*.h5
+*.shp
+*.dbf
+*.prj
+*.shx
+*.cpg
+*.qpj
+*.sbn
+*.sbx
+
+# Allow small processed CSVs but ignore large raw ones
+data/raw/**/*.csv
+data/raw/**/*.xlsx
+data/raw/**/*.zip
+data/raw/**/*.gz
+data/raw/**/*.tar.gz
+
+# Keep .gitkeep files to preserve empty directories
+!**/.gitkeep
+
+# ── NetLogo ────────────────────────────────────────────────────────────────
+*.nlogo~          # NetLogo backup files
+model/__pycache__/
+
+# ── R ──────────────────────────────────────────────────────────────────────
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+# renv: track renv.lock but not the library itself
+renv/library/
+renv/staging/
+renv/sandbox/
+renv/.cache/
+# Do track these renv files:
+!renv/activate.R
+!renv/settings.json
+!renv.lock
+
+# ── Outputs — figures and tables are regenerated, don't version them ───────
+outputs/figures/*.pdf
+outputs/figures/*.png
+outputs/figures/*.svg
+outputs/tables/*.csv
+outputs/tables/*.xlsx
+# Exception: keep a sample figure for the README if needed
+!outputs/figures/README_sample.png
+
+# ── OS / IDE ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── Secrets / credentials ──────────────────────────────────────────────────
+.env
+*.pem
+*.key
+secrets/

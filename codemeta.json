@@ -1,0 +1,50 @@
+{
+  "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+  "@type": "SoftwareSourceCode",
+  "name": "WEF Nexus ABM: Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds",
+  "description": "Agent-based model simulating WEF nexus dynamics in a Brazilian periurban watershed under IPCC AR6 climate scenarios. Integrates ANA, ANEEL, MapBiomas, and IPCC open datasets.",
+  "version": "0.1.0",
+  "dateCreated": "2026-04-24",
+  "datePublished": "",
+  "license": "https://spdx.org/licenses/MIT",
+  "codeRepository": "https://github.com/oThiagoRossi/wef-nexus-abm",
+  "programmingLanguage": [
+    { "@type": "ComputerLanguage", "name": "NetLogo", "version": "6.4.0" },
+    { "@type": "ComputerLanguage", "name": "R",       "version": ">=4.3.0" }
+  ],
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Thiago",
+      "familyName": "Rossi",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
+      },
+      "@id": ""
+    }
+  ],
+  "keywords": [
+    "water-energy-food nexus",
+    "agent-based modeling",
+    "periurban agriculture",
+    "distributed solar energy",
+    "governance fragmentation",
+    "climate change scenarios",
+    "Brazil",
+    "FAIR data",
+    "NetLogo"
+  ],
+  "softwareRequirements": [
+    "NetLogo >= 6.4.0",
+    "R >= 4.3.0",
+    "renv (R package for environment reproducibility)"
+  ],
+  "relatedLink": "",
+  "referencePublication": {
+    "@type": "ScholarlyArticle",
+    "name": "Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds",
+    "journal": "Water (MDPI)",
+    "doi": ""
+  }
+}

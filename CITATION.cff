@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use this model or data, please cite it as below."
+type: software
+title: "WEF Nexus ABM: Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds"
+abstract: >
+  Agent-based model (ABM) simulating Water-Energy-Food (WEF) nexus dynamics
+  in a Brazilian periurban watershed under IPCC AR6 climate scenarios (SSP2-4.5
+  and SSP5-8.5). Integrates open datasets from ANA, ANEEL, and MapBiomas.
+  Developed as part of a manuscript submitted to Water (MDPI), Special Issue
+  "The Water-Energy-Food Nexus: Toward Integrated Solutions for Sustainability".
+authors:
+  - family-names: Rossi
+    given-names: Thiago
+    affiliation: "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
+    orcid: ""           # TODO: insert your ORCID https://orcid.org/
+repository-code: "https://github.com/oThiagoRossi/wef-nexus-abm"   # TODO: update if repo name changes
+license: MIT
+license-url: "https://opensource.org/licenses/MIT"
+version: "0.1.0"       # update to 1.0.0 at submission; 1.1.0 after revisions
+date-released: "2026-04-24"
+keywords:
+  - water-energy-food nexus
+  - agent-based modeling
+  - periurban agriculture
+  - distributed energy
+  - governance fragmentation
+  - climate change
+  - Brazil
+  - NetLogo
+  - FAIR data
+preferred-citation:
+  type: article
+  title: >
+    Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds:
+    An Agent-Based Simulation Grounded in Institutional Governance Fragmentation
+    and Climate Change Scenarios
+  authors:
+    - family-names: Rossi
+      given-names: Thiago
+  journal: "Water"
+  publisher: "MDPI"
+  year: 2026
+  doi: ""   # TODO: insert DOI after acceptance
+  url: ""   # TODO: insert URL after acceptance

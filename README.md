@@ -1,9 +1,9 @@
 # WEF Nexus ABM — Brazilian Periurban Watersheds
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20347727.svg)](https://doi.org/10.5281/zenodo.XXXXXXX)
 [![License: MIT](https://img.shields.io/badge/Code-MIT-blue.svg)](LICENSE)
 [![License: CC BY 4.0](https://img.shields.io/badge/Data%20%26%20Docs-CC%20BY%204.0-lightgrey.svg)](LICENSE-DATA)
-[![NetLogo](https://img.shields.io/badge/NetLogo-6.4.0-orange.svg)](https://ccl.northwestern.edu/netlogo/)
+[![NetLogo](https://img.shields.io/badge/NetLogo-7.0.4-orange.svg)](https://ccl.northwestern.edu/netlogo/)
 [![R](https://img.shields.io/badge/R-%3E%3D4.3.0-276DC3.svg)](https://www.r-project.org/)
 
 > **Status:** 🚧 In active development — target submission: July 18–21, 2026
@@ -12,7 +12,7 @@
 
 This repository contains the full computational infrastructure for the paper:
 
-> Rossi, T. (2026). *Modeling the Water–Energy–Food Nexus in Brazilian Periurban
+> Rossi, T.J.A., Sarti, F.M. (2026). *Modeling the Water–Energy–Food Nexus in Brazilian Periurban
 > Watersheds: An Agent-Based Simulation Grounded in Institutional Governance
 > Fragmentation and Climate Change Scenarios.* **Water (MDPI)**, Special Issue:
 > "The Water–Energy–Food Nexus: Toward Integrated Solutions for Sustainability."
@@ -76,7 +76,7 @@ wef-nexus-abm/
 
 | Tool     | Version  | Purpose                        |
 |----------|----------|--------------------------------|
-| NetLogo  | 6.4.0    | ABM execution                  |
+| NetLogo  | 7.0.4    | ABM execution                  |
 | R        | ≥ 4.3.0  | Statistical analysis & figures |
 | renv     | ≥ 1.0.0  | R environment reproducibility  |
 
@@ -147,7 +147,7 @@ Full provenance in `data/README_data.md`.
 If you use this model or code, please cite:
 
 ```bibtex
-@article{rossi2026wef,
+@article{rossisarti2026wef,
   author  = {Rossi, Thiago},
   title   = {Modeling the Water--Energy--Food Nexus in Brazilian Periurban
              Watersheds: An Agent-Based Simulation Grounded in Institutional
@@ -166,7 +166,7 @@ Software citation: see `CITATION.cff` or cite the Zenodo DOI above.
 
 ## Author
 
-**Thiago Rossi**
+**Thiago Joel Angrizanes Rossi**
 Doctoral Researcher, Public Policy Management
 School of Arts, Sciences and Humanities (EACH) — University of São Paulo (USP)
 [@oThiagoRossi](https://twitter.com/oThiagoRossi)

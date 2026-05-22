@@ -9,15 +9,15 @@ abstract: >
   Developed as part of a manuscript submitted to Water (MDPI), Special Issue
   "The Water-Energy-Food Nexus: Toward Integrated Solutions for Sustainability".
 authors:
-  - family-names: Rossi
-    given-names: Thiago
+  - family-names: Angrizanes Rossi, Mori Sarti
+    given-names: Thiago Joel, Flávia
     affiliation: "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
-    orcid: ""           # TODO: insert your ORCID https://orcid.org/
-repository-code: "https://github.com/oThiagoRossi/wef-nexus-abm"   # TODO: update if repo name changes
+    orcid: "https://orcid.org/0000-0002-8246-2393"
+repository-code: "https://github.com/othiagorossi/wef-nexus-abm-br-watersheds-climate"
 license: MIT
 license-url: "https://opensource.org/licenses/MIT"
-version: "0.1.0"       # update to 1.0.0 at submission; 1.1.0 after revisions
-date-released: "2026-04-24"
+version: "0.1.0"
+date-released: "2026-05-22"
 keywords:
   - water-energy-food nexus
   - agent-based modeling
@@ -35,10 +35,10 @@ preferred-citation:
     An Agent-Based Simulation Grounded in Institutional Governance Fragmentation
     and Climate Change Scenarios
   authors:
-    - family-names: Rossi
-      given-names: Thiago
+    - family-names: Angrizanes Rossi, Mori Sarti
+      given-names: Thiago Joel, Flávia
   journal: "Water"
   publisher: "MDPI"
   year: 2026
-  doi: ""   # TODO: insert DOI after acceptance
+  doi: "10.5281/zenodo.20347727"
   url: ""   # TODO: insert URL after acceptance

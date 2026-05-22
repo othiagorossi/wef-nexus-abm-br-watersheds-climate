@@ -168,6 +168,7 @@ Software citation: see `CITATION.cff` or cite the Zenodo DOI above.
 
 **Thiago Joel Angrizanes Rossi**
 Doctoral Researcher, Public Policy Management
+
 School of Arts, Sciences and Humanities (EACH) — University of São Paulo (USP)
 [@oThiagoRossi](https://twitter.com/oThiagoRossi)
 

@@ -237,6 +237,40 @@
       "Maintainer": "Hadley Wickham <hadley@posit.co>",
       "Repository": "CRAN"
     },
+    "abjutils": {
+      "Package": "abjutils",
+      "Version": "0.3.2",
+      "Source": "Repository",
+      "Type": "Package",
+      "Title": "Useful Tools for Jurimetrical Analysis Used by the Brazilian Jurimetrics Association",
+      "Date": "2022-01-31",
+      "Authors@R": "c( person(\"Caio\", \"Lente\", , \"clente@abj.org.br\", role = c(\"aut\", \"cre\"), comment = c(ORCID = \"0000-0001-8473-069X\")), person(\"Julio\", \"Trecenti\", , \"julio.trecenti@gmail.com\", role = \"aut\", comment = c(ORCID = \"0000-0002-1680-6389\")), person(\"Katerine\", \"Witkoski\", , \"kwitkoski@abj.org.br\", role = \"ctb\", comment = c(ORCID = \"0000-0002-3691-6569\")), person(\"Associação Brasileira de Jurimetria\", role = c(\"cph\", \"fnd\")) )",
+      "Description": "The Brazilian Jurimetrics Association (ABJ in Portuguese, see <https://abj.org.br/> for more information) is a non-profit organization which aims to investigate and promote the use of statistics and probability in the study of Law and its institutions. This package implements general purpose tools used by ABJ, such as functions for sampling and basic manipulation of Brazilian lawsuits identification number. It also implements functions for text cleaning, such as accentuation removal.",
+      "License": "MIT + file LICENSE",
+      "URL": "https://github.com/abjur/abjutils",
+      "Depends": [
+        "R (>= 3.6)"
+      ],
+      "Imports": [
+        "dplyr",
+        "magrittr",
+        "purrr",
+        "rlang",
+        "rstudioapi",
+        "stringi",
+        "stringr",
+        "tidyr"
+      ],
+      "Suggests": [
+        "testthat"
+      ],
+      "Encoding": "UTF-8",
+      "RoxygenNote": "7.1.2",
+      "NeedsCompilation": "no",
+      "Author": "Caio Lente [aut, cre] (<https://orcid.org/0000-0001-8473-069X>), Julio Trecenti [aut] (<https://orcid.org/0000-0002-1680-6389>), Katerine Witkoski [ctb] (<https://orcid.org/0000-0002-3691-6569>), Associação Brasileira de Jurimetria [cph, fnd]",
+      "Maintainer": "Caio Lente <clente@abj.org.br>",
+      "Repository": "CRAN"
+    },
     "askpass": {
       "Package": "askpass",
       "Version": "1.2.1",
@@ -2133,6 +2167,52 @@
       "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
       "Repository": "CRAN"
     },
+    "janitor": {
+      "Package": "janitor",
+      "Version": "2.2.1",
+      "Source": "Repository",
+      "Title": "Simple Tools for Examining and Cleaning Dirty Data",
+      "Authors@R": "c(person(\"Sam\", \"Firke\", email = \"samuel.firke@gmail.com\", role = c(\"aut\", \"cre\")), person(\"Bill\", \"Denney\", email = \"wdenney@humanpredictions.com\", role = \"ctb\"), person(\"Chris\", \"Haid\", email = \"chrishaid@gmail.com\", role = \"ctb\"), person(\"Ryan\", \"Knight\", email = \"ryangknight@gmail.com\", role = \"ctb\"), person(\"Malte\", \"Grosser\", email = \"malte.grosser@gmail.com\", role = \"ctb\"), person(\"Jonathan\", \"Zadra\", email = \"jonathan.zadra@sorensonimpact.com\", role = \"ctb\"))",
+      "Description": "The main janitor functions can: perfectly format data.frame column names; provide quick counts of variable combinations (i.e., frequency tables and crosstabs); and explore duplicate records. Other janitor functions nicely format the tabulation results. These tabulate-and-report functions approximate popular features of SPSS and Microsoft Excel. This package follows the principles of the \"tidyverse\" and works well with the pipe function %>%. janitor was built with beginning-to-intermediate R users in mind and is optimized for user-friendliness.",
+      "URL": "https://github.com/sfirke/janitor, https://sfirke.github.io/janitor/",
+      "BugReports": "https://github.com/sfirke/janitor/issues",
+      "Depends": [
+        "R (>= 3.1.2)"
+      ],
+      "Imports": [
+        "dplyr (>= 1.0.0)",
+        "hms",
+        "lifecycle",
+        "lubridate",
+        "magrittr",
+        "purrr",
+        "rlang",
+        "stringi",
+        "stringr",
+        "snakecase (>= 0.9.2)",
+        "tidyselect (>= 1.0.0)",
+        "tidyr (>= 0.7.0)"
+      ],
+      "License": "MIT + file LICENSE",
+      "RoxygenNote": "7.2.3",
+      "Suggests": [
+        "dbplyr",
+        "knitr",
+        "rmarkdown",
+        "RSQLite",
+        "sf",
+        "testthat (>= 3.0.0)",
+        "tibble",
+        "tidygraph"
+      ],
+      "VignetteBuilder": "knitr",
+      "Encoding": "UTF-8",
+      "Config/testthat/edition": "3",
+      "NeedsCompilation": "no",
+      "Author": "Sam Firke [aut, cre], Bill Denney [ctb], Chris Haid [ctb], Ryan Knight [ctb], Malte Grosser [ctb], Jonathan Zadra [ctb]",
+      "Maintainer": "Sam Firke <samuel.firke@gmail.com>",
+      "Repository": "CRAN"
+    },
     "jquerylib": {
       "Package": "jquerylib",
       "Version": "0.1.4",
@@ -3646,6 +3726,41 @@
       "Maintainer": "Edzer Pebesma <edzer.pebesma@uni-muenster.de>",
       "Repository": "CRAN"
     },
+    "snakecase": {
+      "Package": "snakecase",
+      "Version": "0.11.1",
+      "Source": "Repository",
+      "Date": "2023-08-27",
+      "Title": "Convert Strings into any Case",
+      "Description": "A consistent, flexible and easy to use tool to parse and convert strings into cases like snake or camel among others.",
+      "Authors@R": "c( person(\"Malte\", \"Grosser\", , \"malte.grosser@gmail.com\", role = c(\"aut\", \"cre\")))",
+      "Maintainer": "Malte Grosser <malte.grosser@gmail.com>",
+      "Depends": [
+        "R (>= 3.2)"
+      ],
+      "Imports": [
+        "stringr",
+        "stringi"
+      ],
+      "Suggests": [
+        "testthat",
+        "covr",
+        "tibble",
+        "purrrlyr",
+        "knitr",
+        "rmarkdown",
+        "magrittr"
+      ],
+      "URL": "https://github.com/Tazinho/snakecase",
+      "BugReports": "https://github.com/Tazinho/snakecase/issues",
+      "Encoding": "UTF-8",
+      "License": "GPL-3",
+      "RoxygenNote": "6.1.1",
+      "VignetteBuilder": "knitr",
+      "NeedsCompilation": "no",
+      "Author": "Malte Grosser [aut, cre]",
+      "Repository": "CRAN"
+    },
     "stringi": {
       "Package": "stringi",
       "Version": "1.8.7",
@@ -3791,49 +3906,6 @@
       "NeedsCompilation": "yes",
       "Author": "Thomas Lin Pedersen [aut, cre] (ORCID: <https://orcid.org/0000-0002-5147-4711>), Jeroen Ooms [aut] (ORCID: <https://orcid.org/0000-0002-4035-0289>), Devon Govett [aut] (Author of font-manager), Posit Software, PBC [cph, fnd] (ROR: <https://ror.org/03wc8by49>)",
       "Maintainer": "Thomas Lin Pedersen <thomas.pedersen@posit.co>",
-      "Repository": "CRAN"
-    },
-    "terra": {
-      "Package": "terra",
-      "Version": "1.9-27",
-      "Source": "Repository",
-      "Type": "Package",
-      "Title": "Spatial Data Analysis",
-      "Date": "2026-05-09",
-      "Depends": [
-        "R (>= 3.5.0)",
-        "methods"
-      ],
-      "Suggests": [
-        "parallel",
-        "tinytest",
-        "ncdf4",
-        "sf (>= 0.9-8)",
-        "deldir",
-        "XML",
-        "leaflet (>= 2.2.1)",
-        "htmlwidgets",
-        "future",
-        "future.apply"
-      ],
-      "LinkingTo": [
-        "Rcpp"
-      ],
-      "Imports": [
-        "Rcpp (>= 1.0-10)"
-      ],
-      "SystemRequirements": "C++17, GDAL (>= 2.2.3), GEOS (>= 3.4.0), PROJ (>= 4.9.3), TBB, sqlite3",
-      "Encoding": "UTF-8",
-      "Language": "en-US",
-      "Maintainer": "Robert J. Hijmans <r.hijmans@gmail.com>",
-      "Description": "Methods for spatial data analysis with vector (points, lines, polygons) and raster (grid) data. Methods for vector data include geometric operations such as intersect and buffer. Raster methods include local, focal, global, zonal and geometric operations. The predict and interpolate methods facilitate the use of regression type (interpolation, machine learning) models for spatial prediction, including with satellite remote sensing data. Processing of very large files is supported. See the manual and tutorials on <https://rspatial.org/> to get started.",
-      "License": "GPL (>= 3)",
-      "URL": "https://rspatial.org/, https://rspatial.github.io/terra/",
-      "BugReports": "https://github.com/rspatial/terra/issues",
-      "LazyLoad": "yes",
-      "Authors@R": "c( person(\"Robert J.\", \"Hijmans\", role=c(\"cre\", \"aut\"),   email=\"r.hijmans@gmail.com\", comment=c(ORCID=\"0000-0001-5872-2872\")),\t\t\t person(\"Andrew\", \"Brown\", role=\"aut\", comment=c(ORCID=\"0000-0002-4565-533X\")), person(\"Márcia\", \"Barbosa\", role=\"aut\", comment=c(ORCID=\"0000-0001-8972-7713\")), person(\"Krzysztof\", \"Dyba\", role=\"ctb\", comment=c(ORCID=\"0000-0002-8614-3816\")), person(\"Roger\", \"Bivand\", role=\"ctb\", comment=c(ORCID=\"0000-0003-2392-6140\")), person(\"Michael\", \"Chirico\", role=\"ctb\", comment=c(ORCID=\"0000-0003-0787-087X\")), person(\"Emanuele\", \"Cordano\", role=\"ctb\",comment=c(ORCID=\"0000-0002-3508-5898\")), person(\"Edzer\", \"Pebesma\", role=\"ctb\", comment=c(ORCID=\"0000-0001-8049-7069\")), person(\"Barry\", \"Rowlingson\", role=\"ctb\", comment=c(ORCID=\"0000-0002-8586-6625\")), person(\"Michael D.\", \"Sumner\", role=\"ctb\", comment=c(ORCID=\"0000-0002-2471-7511\")))",
-      "NeedsCompilation": "yes",
-      "Author": "Robert J. Hijmans [cre, aut] (ORCID: <https://orcid.org/0000-0001-5872-2872>), Andrew Brown [aut] (ORCID: <https://orcid.org/0000-0002-4565-533X>), Márcia Barbosa [aut] (ORCID: <https://orcid.org/0000-0001-8972-7713>), Krzysztof Dyba [ctb] (ORCID: <https://orcid.org/0000-0002-8614-3816>), Roger Bivand [ctb] (ORCID: <https://orcid.org/0000-0003-2392-6140>), Michael Chirico [ctb] (ORCID: <https://orcid.org/0000-0003-0787-087X>), Emanuele Cordano [ctb] (ORCID: <https://orcid.org/0000-0002-3508-5898>), Edzer Pebesma [ctb] (ORCID: <https://orcid.org/0000-0001-8049-7069>), Barry Rowlingson [ctb] (ORCID: <https://orcid.org/0000-0002-8586-6625>), Michael D. Sumner [ctb] (ORCID: <https://orcid.org/0000-0002-2471-7511>)",
       "Repository": "CRAN"
     },
     "textshaping": {

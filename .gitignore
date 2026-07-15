@@ -1,26 +1,12 @@
-# ── Large geospatial / data files ─────────────────────────────────────────
-*.tif
-*.tiff
-*.geotiff
-*.nc          # NetCDF (IPCC/climate data)
-*.nc4
-*.hdf
-*.h5
-*.shp
-*.dbf
-*.prj
-*.shx
-*.cpg
-*.qpj
-*.sbn
-*.sbx
+# ── Data: ignore all raw and processed data ────────────────────────────────
+data/raw/**
+data/processed/**
+data/download_log.txt
 
-# Allow small processed CSVs but ignore large raw ones
-data/raw/**/*.csv
-data/raw/**/*.xlsx
-data/raw/**/*.zip
-data/raw/**/*.gz
-data/raw/**/*.tar.gz
+# Keep folder structure and documentation
+!data/**/
+!**/.gitkeep
+!data/README_data.md
 
 # Keep .gitkeep files to preserve empty directories
 !**/.gitkeep

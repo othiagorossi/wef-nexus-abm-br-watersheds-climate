@@ -28,6 +28,10 @@ globals [
   base-conversion-rate
   urban-pressure-coef
   water-stress-exit-coef
+  warming-ssp245
+  warming-ssp585
+  et-sensitivity
+  climate-onset-year
 ]
 
 municipalities-own [
@@ -163,6 +167,16 @@ to set-parameters
   set base-conversion-rate     0.0013  ; annual fraction of farming -> urban
   set urban-pressure-coef      0.5    ; self-reinforcing urban attraction
   set water-stress-exit-coef   0.3    ; stress raises farmer exit/conversion
+  ;; Climate scenarios — availability decline driven by warming-induced
+  ;; evapotranspiration. Warming for SE South America (SAM/SES region),
+  ;; mid-century (2040-2059) vs 1995-2014, from CMIP6/AR6:
+  ;;   SSP2-4.5: +1.0 to +1.8 C (median ~1.4)
+  ;;   SSP5-8.5: +1.2 to +3.0 C (median ~2.1)
+  ;; Availability sensitivity: ~4% loss of effective water per +1 C
+  set warming-ssp245        1.4
+  set warming-ssp585        2.1
+  set et-sensitivity        0.04
+  set climate-onset-year    2025
 end
 
 ; ============================================================================
@@ -186,8 +200,19 @@ end
 ; ============================================================================
 
 to update-climate
-  set precip-anomaly 0
-  set temp-anomaly 0
+  ifelse (climate-scenario = "historical") or (current-year < climate-onset-year) [
+    set temp-anomaly 0
+    set climate-availability-factor 1.0
+  ] [
+    let target-warming 0
+    if climate-scenario = "ssp245" [ set target-warming warming-ssp245 ]
+    if climate-scenario = "ssp585" [ set target-warming warming-ssp585 ]
+    let ramp-end 2050
+    let progress min list 1 ((current-year - climate-onset-year) /
+                            (ramp-end - climate-onset-year))
+    set temp-anomaly (target-warming * progress)
+    set climate-availability-factor (1 - et-sensitivity * temp-anomaly)
+  ]
 end
 
 to update-hydrology

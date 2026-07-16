@@ -1,0 +1,297 @@
+extensions [ csv ]
+
+breed [ municipalities municipality ]   
+breed [ farmers farmer ]                
+breed [ prosumers prosumer ]            
+
+globals [
+  start-year
+  end-year
+  current-year
+  solar-start-year
+  solar-innovation-coef
+  solar-imitation-coef
+  max-solar-adoption
+  precip-anomaly
+  temp-anomaly
+  basin-water-index
+  basin-energy-index
+  basin-food-index
+  basin-wef-index
+  base-water-per-ha
+  no-pump-irrigation-frac
+  solar-pump-irrigation-frac
+  climate-availability-factor
+  stress-threshold
+  restriction-strength
+  integrated-efficiency-gain
+  base-conversion-rate
+  urban-pressure-coef
+  water-stress-exit-coef
+]
+
+municipalities-own [
+  ibge-code
+  muni-name
+  area-native
+  area-farming
+  area-urban
+  area-water
+  area-pv
+  area-other
+  total-area
+  water-demand-irrigation
+  baseline-water-capacity
+  water-available           
+  water-stress              
+  restriction-level         
+]
+
+farmers-own [
+  home-muni
+  farm-area                 
+  crop-water-demand         
+  has-solar-pump?
+  irrigation-applied
+  income
+  tenure-security           
+  sell-pressure             
+]
+
+prosumers-own [
+  home-muni
+  solar-capacity            
+  is-rural?                 
+  pump-capacity             
+  water-withdrawal          
+]
+
+; ============================================================================
+; SETUP
+; ============================================================================
+to setup
+  clear-all
+  set-parameters
+  set start-year 1985
+  set end-year 2065
+  set current-year start-year
+  load-municipalities
+  populate-farmers
+  reset-nexus-indices
+  reset-ticks
+end
+
+to load-municipalities
+  let rows csv:from-file "../data/model_inputs/municipality_initial_conditions.csv"
+  foreach but-first rows [ row ->
+    create-municipalities 1 [
+      set ibge-code               item 0 row
+      set muni-name               item 1 row
+      set area-native             item 2 row
+      set area-farming            item 3 row
+      set area-urban              item 4 row
+      set area-water              item 5 row
+      set area-pv                 item 6 row
+      set area-other              item 7 row
+      set water-demand-irrigation item 9 row
+      set baseline-water-capacity item 9 row
+      set total-area (area-native + area-farming + area-urban +
+                      area-water + area-pv + area-other)
+      set restriction-level 0
+      set shape "circle"
+      set color scale-color green (area-farming / total-area) 0 0.6
+      set size 1.4
+    ]
+  ]
+  layout-municipalities
+end
+
+to layout-municipalities
+  let n count municipalities
+  let cols ceiling sqrt n
+  let rows ceiling (n / cols)
+  let margin 2
+  let usable-w (world-width - 2 * margin)
+  let usable-h (world-height - 2 * margin)
+  let i 0
+  foreach sort municipalities [ m ->
+    let col (i mod cols)
+    let row (int (i / cols))
+    ask m [
+      setxy (min-pxcor + margin + col * (usable-w / (cols - 1)))
+            (max-pycor - margin - row * (usable-h / (rows - 1)))
+    ]
+    set i i + 1
+  ]
+end
+
+to populate-farmers
+  ask municipalities [
+    let n-farmers max list 0 (round (area-farming / hectares-per-farmer))
+    hatch-farmers n-farmers [
+      set breed farmers
+      set home-muni myself
+      set farm-area hectares-per-farmer
+      set crop-water-demand 0            
+      set has-solar-pump? false
+      set income 0
+      set tenure-security (0.4 + random-float 0.6)
+      set sell-pressure 0
+      set shape "person"
+      set color green
+      set size 0.6
+      
+      setxy ([xcor] of myself + random-float 1 - 0.5)
+            ([ycor] of myself + random-float 1 - 0.5)
+    ]
+  ]
+end
+
+to set-parameters
+  set solar-start-year      2013   ; rural solar first appears ~2013-2016
+  set solar-innovation-coef 0.003  
+  set solar-imitation-coef  0.25   
+  set max-solar-adoption    0.20
+  set base-water-per-ha        0.5   
+  set no-pump-irrigation-frac  0.55  
+  set solar-pump-irrigation-frac 0.95
+  set climate-availability-factor 1.0   ; 1 = no climate stress; <1 under SSP
+  set stress-threshold           0.8    ; stress level that triggers restriction
+  set restriction-strength       0.5    ; how hard fragmented governance cuts
+  set integrated-efficiency-gain 0.3    ; demand reduction under integrated mode
+  ;; (basin farming share 26.4% in 1985 -> 21.1% in 2024).
+  set base-conversion-rate     0.0013  ; annual fraction of farming -> urban
+  set urban-pressure-coef      0.5    ; self-reinforcing urban attraction
+  set water-stress-exit-coef   0.3    ; stress raises farmer exit/conversion
+end
+
+; ============================================================================
+; GO — annual schedule
+; ============================================================================
+to go
+  if current-year >= end-year [ stop ]
+  update-climate          ; 1. exogenous SSP forcing
+  update-hydrology        ; 2. water availability per municipality
+  solar-adoption          ; 3. prosumers adopt / expand solar
+  irrigation-decision     ; 4. farmers decide abstraction
+  water-allocation        ; 5. manager reconciles demand vs availability
+  land-use-transition     ; 6. urban pressure displaces farming
+  update-nexus-indices    ; 7. record W/E/F composite
+  set current-year current-year + 1
+  tick
+end
+
+; ============================================================================
+; SUBMODELS (stubs — logic to be implemented)
+; ============================================================================
+
+to update-climate
+  set precip-anomaly 0
+  set temp-anomaly 0
+end
+
+to update-hydrology
+  ask municipalities [
+    set water-available (baseline-water-capacity * climate-availability-factor)
+  ]
+end
+
+to solar-adoption
+  if current-year < solar-start-year [ stop ]
+
+  ask municipalities [
+    let local-farmers farmers with [ home-muni = myself ]
+    let n-local count local-farmers
+    if n-local > 0 [
+      let adopted-share (count local-farmers with [ has-solar-pump? ]) / n-local
+      if adopted-share < max-solar-adoption [
+        ask local-farmers with [ not has-solar-pump? ] [
+          let p (solar-innovation-coef + solar-imitation-coef * adopted-share)
+          if random-float 1 < p [
+            set has-solar-pump? true
+            set color yellow    
+          ]
+        ]
+      ]
+    ]
+  ]
+end
+
+to irrigation-decision
+  ask farmers [
+    set crop-water-demand (farm-area * base-water-per-ha)
+    let affordable-frac ifelse-value has-solar-pump?
+      [ solar-pump-irrigation-frac ]
+      [ no-pump-irrigation-frac ]
+    set irrigation-applied (crop-water-demand * affordable-frac)
+  ]
+
+  ask municipalities [
+    let local-farmers farmers with [ home-muni = myself ]
+    set water-demand-irrigation sum [ irrigation-applied ] of local-farmers
+  ]
+end
+
+to water-allocation
+  ask municipalities [
+    let effective-demand water-demand-irrigation
+    if governance-mode = "integrated" [
+      set effective-demand (water-demand-irrigation * (1 - integrated-efficiency-gain))
+    ]
+
+    ifelse water-available > 0 [
+      set water-stress (effective-demand / water-available)
+    ] [
+      set water-stress 0
+    ]
+
+    ifelse water-stress > stress-threshold [
+      set restriction-level restriction-strength
+    ] [
+      set restriction-level 0
+    ]
+
+    set color scale-color red water-stress 0 1.5
+  ]
+end
+
+to land-use-transition
+  ask municipalities [
+    if area-farming > 0 [
+      let urban-share (area-urban / total-area)
+      let rate (base-conversion-rate
+                * (1 + urban-pressure-coef * urban-share)
+                * (1 + water-stress-exit-coef * water-stress))
+      let converted (area-farming * rate)
+      set area-farming (area-farming - converted)
+      set area-urban   (area-urban + converted)
+
+      let exit-frac (converted / (area-farming + converted))
+      ask farmers with [ home-muni = myself ] [
+        if random-float 1 < exit-frac [ die ]
+      ]
+    ]
+    set color scale-color green (area-farming / total-area) 0 0.6
+  ]
+end
+
+to update-nexus-indices
+  set basin-water-index  mean-or-zero [1 - water-stress] of municipalities
+  set basin-energy-index 0
+  set basin-food-index   0
+  set basin-wef-index (basin-water-index + basin-energy-index + basin-food-index) / 3
+end
+
+to reset-nexus-indices
+  set basin-water-index 0
+  set basin-energy-index 0
+  set basin-food-index 0
+  set basin-wef-index 0
+end
+
+; ============================================================================
+; HELPERS
+; ============================================================================
+to-report mean-or-zero [ lst ]
+  ifelse empty? lst [ report 0 ] [ report mean lst ]
+end

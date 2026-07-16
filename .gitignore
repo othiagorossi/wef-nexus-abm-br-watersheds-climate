@@ -2,6 +2,7 @@
 data/raw/**
 data/processed/**
 data/download_log.txt
+data/model_inputs/**
 
 # Keep folder structure and documentation
 !data/**/

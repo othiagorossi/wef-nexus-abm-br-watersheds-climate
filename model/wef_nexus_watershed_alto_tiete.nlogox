@@ -1316,4 +1316,37 @@ end]]></code>
     </shape>
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
+  <experiments>
+    <experiment name="scenarios_S0_S4" repetitions="50" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+          <value value="&quot;ssp245&quot;"></value>
+          <value value="&quot;ssp585&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+          <value value="&quot;integrated&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+  </experiments>
 </model>

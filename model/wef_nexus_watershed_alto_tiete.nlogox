@@ -371,7 +371,7 @@ to-report mean-or-zero [ lst ]
 end]]></code>
   <widgets>
     <view x="368" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-16" height="434" showTickCounter="true" patchSize="13.0" fontSize="10" wrappingAllowedY="true" width="434" tickCounterLabel="ticks" maxPycor="16" updateMode="0" maxPxcor="16" minPxcor="-16"></view>
-    <chooser x="110" y="60" height="60" variable="climate-scenario" current="0" width="250" display="climate-scenario">
+    <chooser x="110" y="60" height="60" variable="climate-scenario" current="1" width="250" display="climate-scenario">
       <choice type="string" value="historical"></choice>
       <choice type="string" value="ssp245"></choice>
       <choice type="string" value="ssp585"></choice>

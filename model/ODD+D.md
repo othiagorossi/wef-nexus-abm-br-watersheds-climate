@@ -6,10 +6,10 @@
 > and Structural Realism. *Journal of Artificial Societies and Social Simulation*,
 > 23(2), 7. https://doi.org/10.18564/jasss.4259
 
-> **Model version:** 0.1.0  
-> **NetLogo version:** 6.4.0  
-> **Last updated:** 2026-04-24  
-> **Status:** 🚧 Draft — to be completed during Phases 1–2
+> **Model version:** 1.0.0  
+> **NetLogo version:** 7.0.4  
+> **Last updated:** [26 July 2026]
+> **Status:** Revised
 
 ---
 
@@ -18,65 +18,50 @@
 ### 1. Purpose and Patterns
 
 **Purpose:**  
-This model simulates Water–Energy–Food (WEF) nexus dynamics in a Brazilian
-periurban watershed to investigate how institutional governance fragmentation
-interacts with climate-driven water scarcity and distributed solar energy
-adoption, generating emergent trade-offs and coordination failures across the
-nexus. The model aims to quantify the aggregate effects of individual agent
-decisions on water availability, energy production, and food output under
-contrasting governance regimes and IPCC AR6 climate scenarios.
+This model simulates Water–Energy–Food (WEF) nexus dynamics in the Brazilian periurban watershed of the Alto Tietê (UGRHI 6). It investigates how institutional governance fragmentation interacts with climate-driven water scarcity and distributed solar energy adoption. The model aims to quantify the aggregate effects of decentralized agent decisions on water stress, agricultural food production, and land-use transitions under contrasting governance regimes (fragmented vs. integrated) and IPCC AR6 climate scenarios (SSP2-4.5 and SSP5-8.5).
 
 **Patterns used for calibration and validation:**
-- Historical land use transition rates (MapBiomas 1985–2024)
-- Observed distributed solar adoption curves (ANEEL 2012–2024)
-- Annual water withdrawal volumes by sector (ANA, selected sub-basin)
+- Historical land use transition rates, specifically the urbanization of agricultural land (MapBiomas Collection 10.1, 1985–2024).
+- Observed distributed rural solar adoption diffusion curves (ANEEL, 2012–2024).
+- Spatial co-location of water demand and solar capacity (ANA water use permits).
 
 ---
 
 ### 2. Entities, State Variables, and Scales
 
-#### Agents
+#### Agents and Spatial Units
 
-| Agent Type | Description | Key State Variables |
+| Entity | Description | Key State Variables |
 |---|---|---|
-| `periurban-farmer` | Smallholder farmer in the periurban fringe | `land-area`, `crop-type`, `water-demand`, `irrigation-technology`, `income`, `tenure-security` |
-| `residential-consumer` | Urban household in the watershed | `water-consumption`, `energy-consumption`, `has-solar-panel` |
-| `solar-prosumer` | Residential or farm unit with rooftop solar + irrigation pump | `solar-capacity-kW`, `pump-size-kW`, `water-withdrawal-rate`, `energy-balance` |
-| `water-manager` | Institutional agent representing ANA / basin committee | `available-water-stock`, `granted-withdrawals`, `restriction-threshold`, `governance-mode` |
+| `municipality` | Spatial and administrative unit (36 in the basin). Acts as the local resource manager. | `ibge-code`, `muni-name`, `area-native`, `area-farming`, `area-urban`, `baseline-water-capacity`, `water-available`, `water-demand-irrigation`, `water-stress`, `restriction-level` |
+| `farmer` | Smallholder farmer operating within a municipality. | `home-muni`, `farm-area`, `crop-water-demand`, `has-solar-pump?`, `irrigation-demanded`, `irrigation-applied` |
 
-#### Environment (patches)
-
-| Variable | Description | Source |
-|---|---|---|
-| `land-use` | Current land use class (agriculture / urban / native vegetation) | MapBiomas |
-| `land-value` | Relative land market value index | TODO: proxy from municipal data |
-| `soil-moisture` | Simplified soil water balance (mm) | Derived from precipitation + withdrawals |
-| `slope` | Terrain slope (%) | SRTM DEM |
+*(Note: Solar prosumers are modeled endogenously when a `farmer` adopts a solar pump, toggling their `has-solar-pump?` state to true).*
 
 #### Scales
 
 | Dimension | Value | Justification |
 |---|---|---|
-| Spatial extent | [TBD — bacia de estudo] | Sub-basin scale (< 5,000 km²) |
-| Spatial resolution | 30 m × 30 m per patch | Matches MapBiomas resolution |
-| Time step | 1 month | Seasonal agricultural and hydrological cycles |
-| Simulation duration | 40 years (1985–2024 calibration; 2025–2065 projection) | Aligns with MapBiomas series and IPCC projections |
+| Spatial extent | Alto Tietê Basin (UGRHI 6) | Densely urbanized core surrounded by a periurban fringe (~5,900 km²). |
+| Spatial resolution| Municipality level | Matches the institutional resolution of ANEEL and demographic data; farmers are heterogeneous agents nested within these units. |
+| Time step | 1 Year | Captures annual agricultural, hydrological, and land-use cycles. |
+| Simulation duration | 80 years (1985–2065) | 1985–2024 for initialization/calibration; 2025–2065 for IPCC SSP projections and scenario analysis. |
 
 ---
 
 ### 3. Process Overview and Scheduling
 
-Each time step (month), the following processes execute in order:
+Each annual time step (`tick`), the following processes execute in strict order:
 
-1. **Climate forcing** — update precipitation and temperature from scenario data (SSP2-4.5 or SSP5-8.5)
-2. **Hydrological update** — recalculate water stock in patches based on precipitation, evapotranspiration, and upstream flow
-3. **Solar adoption decision** — prosumers evaluate whether to install/expand solar capacity (annual sub-step)
-4. **Irrigation decision** — farmers decide how much to irrigate based on soil moisture, water cost, and pump capacity
-5. **Water withdrawal** — aggregate withdrawals are summed; water manager evaluates against available stock and governance rules
-6. **Crop yield calculation** — farmer income updated based on actual irrigation vs. water demand
-7. **Land use transition decision** — farmers under financial pressure evaluate selling land; residential agents evaluate expansion
-8. **Land use update** — patches change state based on transition decisions
-9. **Data collection** — record WEF index components, withdrawals, land use shares, adoption rates
+1. **Update Climate:** Calculates the temperature anomaly based on the selected IPCC scenario (historical, SSP2-4.5, or SSP5-8.5) and defines the `climate-availability-factor`.
+2. **Update Hydrology:** Municipalities adjust their `water-available` by applying the climate availability factor to their baseline permitted capacity.
+3. **Solar Adoption Decision:** Starting in 2013, non-adopting farmers probabilistically adopt solar pumps based on a Bass-type diffusion model (innovation + local imitation), up to a municipal adoption ceiling.
+4. **Irrigation Decision (Rebound Stage 1):** Farmers calculate their `irrigation-demanded`. Farmers with solar pumps demand a higher fraction of their ideal crop water requirement due to near-zero marginal pumping costs.
+5. **Water Allocation (Governance):** Municipalities calculate aggregate `water-stress`. 
+    - Under *Integrated Governance*, demand is reduced at the source via an efficiency gain constraint. 
+    - Under *Fragmented Governance*, if stress exceeds the `stress-threshold`, a `restriction-level` is triggered, reducing the actual `irrigation-applied` to farmers post-demand.
+6. **Land-Use Transition:** Municipalities calculate the agricultural-to-urban conversion rate based on urban pressure and local water stress. Farming area is reduced, urban area grows, and a proportional fraction of farmer agents are probabilistically removed from the system.
+7. **Update Nexus Indices:** The aggregate Basin Water Index, Food Index, Energy Driver Index, and the Composite WEF Index are calculated and recorded.
 
 ---
 
@@ -85,62 +70,40 @@ Each time step (month), the following processes execute in order:
 ### 4. Design Concepts
 
 **Basic principles:**  
-The model draws on rational choice theory for agent decision-making, bounded
-by institutional constraints (governance rules, access to credit, tenure
-security). The WEF nexus is modeled as an emergent property of decentralized
-individual decisions rather than a centrally planned allocation.
+The model operationalizes the *Jevons Paradox* (rebound effect) within a socio-hydrological system. Subsidized or cost-free technological efficiency (solar pumping) leads to greater resource extraction unless constrained by integrated governance. Institutional compartmentalization acts as a structural context driving coordination failures.
 
 **Emergence:**  
-- Solar pumping rebound effect (aggregate withdrawal increase from individual adoption decisions)
-- Land use displacement cascade (urbanization displacing agriculture)
-- Governance coordination failure (conflicting sectoral signals producing suboptimal aggregate outcomes)
+- *Solar Pumping Rebound Effect:* Aggregate irrigation abstraction rises without any new farmland.
+- *Land-use Displacement Cascade:* Water stress and urban proximity drive farmers to exit, reducing the local food supply capacity.
+- *Governance Coordination Failures:* Fragmented rules lead to emergency water restrictions that crash food production, a trade-off avoided under integrated governance.
 
 **Adaptation:**  
-Farmers adapt irrigation technology based on energy cost changes (solar
-incentives). Prosumers adapt solar capacity based on payback period.
-Water managers adapt restriction thresholds based on stock levels.
+- *Farmers:* Autonomously adopt solar technologies influenced by peer networks, and exit farming when land-use pressure becomes untenable.
+- *Institutions (Municipalities):* Adapt water delivery via restrictions when the resource buffer is breached.
 
 **Objectives:**  
-- Farmers: maximize net income subject to water and land constraints
-- Prosumers: minimize energy costs / maximize energy independence
-- Water managers: maintain water stock above critical threshold
-
-**Learning:**  
-TODO: evaluate whether social learning (peer influence on solar adoption)
-should be included — likely yes for prosumer diffusion.
-
-**Prediction:**  
-Agents use simple heuristics (if-then rules) rather than forward-looking
-optimization, except water managers who use threshold-based rules.
+Farmers attempt to meet their crop water demand to maximize yield. Water managers (municipalities under fragmented rules) attempt to keep water stress below critical thresholds using blunt restrictions.
 
 **Sensing:**  
-- Farmers sense: local soil moisture, water cost, energy cost, neighbor land use
-- Prosumers sense: electricity tariff, solar incentive policy, neighbor adoption
-- Water managers sense: aggregate withdrawal, water stock, governance mode
+- Farmers sense the share of solar adoption among peers in their municipality.
+- Municipalities sense the aggregate water demand of their nested farmers relative to their `baseline-water-capacity`.
 
 **Interaction:**  
-- Farmers and managers interact through water permit system
-- Prosumers and farmers interact through shared aquifer/river withdrawals
-- Spatial neighbors influence land use transition decisions
+- *Information exchange:* Farmers imitate the technology adoption of other farmers within the same municipality.
+- *Resource competition:* Farmers compete for the municipal water budget, where the collective demand generates systemic stress affecting all local users.
 
 **Stochasticity:**  
-- Crop yield variability (weather noise around scenario mean)
-- Land market shocks
-- Solar adoption timing (stochastic within expected diffusion curve)
-
-**Collectives:**  
-- Basin committee (aggregation of water managers) — active only in integrated governance scenario
-- Farmer cooperative (optional) — TBD
+- Solar pump adoption is evaluated against a uniform random float (`random-float 1 < p`).
+- Farmer exit during land-use transition (urbanization) is stochastic (`random-float 1 < exit-frac`).
+- `tenure-security` is randomly assigned at setup (0.4 to 1.0).
 
 **Observation:**  
-At each time step, record:
-- Water availability index (current stock / long-term mean)
-- Energy self-sufficiency index (local GD / total consumption)
-- Food production index (periurban output / baseline)
-- Composite WEF index (arithmetic mean of three normalized indices)
-- Land use shares by class
-- Total water withdrawals by agent type
-- Number of solar prosumers
+Key outputs recorded at each time step include:
+- `basin-wef-index`: Arithmetic mean of Water and Food indices.
+- `basin-water-index`: 1 minus the mean water stress.
+- `basin-food-index`: Ratio of total `irrigation-applied` to `irrigation-demanded`.
+- `basin-energy-index`: Share of rural solar diffusion (acts as the rebound driver, reported separately).
+- Land-use trajectories (`area-farming`, `area-urban`).
 
 ---
 
@@ -148,69 +111,88 @@ At each time step, record:
 
 ### 5. Initialization
 
-TODO: document initial conditions for each scenario after calibration.
-
-- Initial land use: MapBiomas 1985 raster (reclassified)
-- Initial water stock: ANA historical mean (1985–1990 average)
-- Initial solar adoption: 0 (pre-GD era)
-- Initial farmer population: [TBD from census data]
+The model is initialized at year `1985` (tick 0).
+- **Municipalities:** Initialized using `municipality_initial_conditions.csv`. Land-use areas (Native, Farming, Urban, Water, PV, Other) are set using MapBiomas Collection 10.1 data for 1985. `baseline-water-capacity` and `water-demand-irrigation` are set using ANA permit databases.
+- **Farmers:** Generated proportionally to the initial `area-farming` of each municipality (default: 1 agent per 100 hectares). All farmers start with `has-solar-pump? = false`.
+- **Global Variables:** Climate scenarios and governance modes are selected via user interface or BehaviorSpace setup prior to tick 0.
 
 ---
 
 ### 6. Input Data
 
-| Dataset | File | Resolution | Processing script |
-|---|---|---|---|
-| MapBiomas LULC | `data/raw/MapBiomas/collection9_*.tif` | 30 m, annual | `analysis/01_preprocess.R` |
-| ANA water withdrawals | `data/raw/ANA/outorgas_*.csv` | Municipal, annual | `analysis/01_preprocess.R` |
-| ANEEL distributed solar | `data/raw/ANEEL/gd_solar_*.csv` | Municipal, monthly | `analysis/01_preprocess.R` |
-| IPCC SSP2-4.5 precip. | `data/raw/IPCC/ssp245_pr_*.nc` | ~100 km, monthly | `analysis/01_preprocess.R` |
-| IPCC SSP5-8.5 precip. | `data/raw/IPCC/ssp585_pr_*.nc` | ~100 km, monthly | `analysis/01_preprocess.R` |
+| Dataset | Source | Purpose |
+|---|---|---|
+| Land Use / Land Cover | MapBiomas Col. 10.1 (1985-2024) | Baseline areas and calibration target for the transition cascade. |
+| Water Use Permits | ANA (Agência Nacional de Águas) | Proxies for municipal baseline water availability and initial irrigation demand. |
+| Distributed Generation | ANEEL (Law 14.300/2022) | Observed spatial footprint and empirical target for the rural solar diffusion curve. |
+| Climate Projections | IPCC AR6 (CMIP6) | Defines temperature anomalies (+1.4°C for SSP2-4.5; +2.1°C for SSP5-8.5 by mid-century). |
 
-See `data/README_data.md` for full provenance and download instructions.
+*(All preprocessing is fully documented and reproducible via R scripts `00_download.R` through `01e_model_inputs.R`).*
 
 ---
 
 ### 7. Submodels
 
-TODO: formalize equations for each submodel after implementation.
+#### 7.1 Climate and Hydrology
+Temperature anomalies increase linearly from 2025 to 2050 based on the SSP scenario. The effective water availability drops due to warming-driven evapotranspiration (ET):
+```text
+temp-anomaly = target-warming * ((current-year - 2025) / (2050 - 2025))
+water-available = baseline-water-capacity * (1 - (et-sensitivity * temp-anomaly))
 
-#### 7.1 Water Balance (patch-level)
-```
-W(t+1) = W(t) + Precip(t) - ET(t) - Withdrawal(t) + Upstream_inflow(t)
-```
-
-#### 7.2 Solar Adoption (prosumer agent)
-Logistic diffusion based on payback period relative to peer adoption rate.
-```
-P_adopt(t) = f(payback_period, neighbor_adoption_rate, tariff_incentive)
 ```
 
-#### 7.3 Irrigation Decision (farmer agent)
+#### 7.2 Solar Adoption
+
+Executes only if `current-year >= 2013`. Uses a Bass-diffusion logic capped at `max-solar-adoption`:
+
+```text
+adopted-share = (adopting farmers in muni) / (total farmers in muni)
+Probability of adoption (p) = solar-innovation-coef + (solar-imitation-coef * adopted-share)
+
 ```
-Irrigation(t) = min(Water_demand(t), Permitted_withdrawal, Pump_capacity)
-if has_solar_pump: Pump_capacity = f(solar_irradiance, panel_size)
+
+#### 7.3 Irrigation Decision
+
+Calculates the theoretical crop demand and the fraction actually demanded based on marginal pumping costs:
+
+```text
+crop-water-demand = farm-area * base-water-per-ha
+If has-solar-pump? == true: 
+    irrigation-demanded = crop-water-demand * solar-pump-irrigation-frac
+Else: 
+    irrigation-demanded = crop-water-demand * no-pump-irrigation-frac
+
 ```
 
-#### 7.4 Land Use Transition (farmer agent)
+#### 7.4 Water Allocation and Governance
+
+Aggregates demand and applies policy logic:
+
+```text
+If Governance == "integrated":
+    effective-demand = total-demanded * (1 - integrated-efficiency-gain)
+Else:
+    effective-demand = total-demanded
+
+water-stress = effective-demand / water-available
+
+If water-stress > stress-threshold (Fragmented Governance):
+    restriction-level = restriction-strength
+    irrigation-applied = irrigation-demanded * (1 - restriction-level)
+Else:
+    irrigation-applied = irrigation-demanded
+
 ```
-P_sell(t) = f(income_stress, land_value, tenure_security, urban_pressure)
-```
 
-#### 7.5 WEF Composite Index
-```
-WEF_index(t) = (W_norm(t) + E_norm(t) + F_norm(t)) / 3
-```
-where each component is normalized to [0,1] relative to baseline (S0).
+#### 7.5 Land-Use Displacement Cascade
 
----
+Simulates urban sprawl and farm abandonment:
 
-## References
+```text
+urban-share = area-urban / total-area
+conversion-rate = base-conversion-rate * (1 + urban-pressure-coef * urban-share) * (1 + water-stress-exit-coef * water-stress)
 
-Grimm, V., et al. (2020). The ODD Protocol for Describing Agent-Based and
-Other Simulation Models: A Second Update. *JASSS*, 23(2), 7.
+area-farming(t+1) = area-farming(t) - (area-farming(t) * conversion-rate)
+area-urban(t+1) = area-urban(t) + (area-farming(t) * conversion-rate)
 
-Müller, B., et al. (2013). Describing Human Decisions in Agent-Based Models —
-ODD+D, An Extension of the ODD Protocol. *Environmental Modelling & Software*, 48, 37–48.
-
-[Additional references to be added during manuscript writing]
+Farmers are stochastically removed (`die`) proportional to the fraction of farming area lost.

@@ -1,39 +1,34 @@
 # Data Provenance
 
-All datasets used in this study are publicly available. Raw data files are
-**not modified manually** — all transformations are performed by
-`analysis/01_preprocess.R` and documented here.
+All datasets used in this study are publicly available. Raw files are **not
+modified manually** — every transformation is performed by the preprocessing
+scripts in `analysis/` and documented here.
 
-Large raster files (MapBiomas, IPCC) are **not stored in this repository**.
-Run `analysis/01_preprocess.R` to download and process them automatically.
+The model is driven by **tabular (CSV/XLSX) inputs**, not rasters: MapBiomas is
+used through its municipal land-cover **statistics**, and IPCC AR6 climate
+forcing enters as **regional warming deltas**. No GeoTIFF or NetCDF processing is
+required. The only spatial layers are the basin and municipality **shapefiles**
+used for the study-area map.
 
 ---
 
-## ANA — Agência Nacional de Águas
+## ANA — Agência Nacional de Águas e Saneamento Básico
+
+**Water use permits (outorgas):**
 
 | Field | Value |
 |---|---|
-| Provider | Agência Nacional de Águas e Saneamento Básico (ANA) |
 | Dataset | Outorgas de Direito de Uso de Recursos Hídricos |
 | Access URL | https://metadados.snirh.gov.br/geonetwork/srv/por/catalog.search |
 | Portal | https://www.snirh.gov.br/ |
-| Format | CSV, SHP |
+| Format | CSV (comma-delimited, UTF-8) + SHP (basin/municipality boundaries) |
 | Temporal coverage | 2000–2024 |
-| Spatial resolution | Point (municipal/sub-basin aggregation) |
-| Date accessed | TODO |
+| Spatial resolution | Point, aggregated to municipality |
+| Date accessed | [15 July 2026] |
 | License | Dados Abertos do Governo Federal (Lei nº 12.527/2011) |
 | Local path | `data/raw/ANA/` |
-| Notes | Filter by `tipo_uso == "irrigação"` and basin code of study area |
-
-**Climate projections:**
-
-| Field | Value |
-|---|---|
-| Dataset | AdaptaBrasil — Projeções de Disponibilidade Hídrica |
-| Access URL | https://adaptabrasil.mcti.gov.br/ |
-| Temporal coverage | 2020–2070 |
-| Date accessed | TODO |
-| Local path | `data/raw/ANA/climate_projections/` |
+| Key columns | `ing_nm_municipio`, `int_qt_vazaomedia`, `int_qt_volumeanual`, `tpo_ds`, `outorga_valida` |
+| Notes | Filter irrigation permits and valid grants (`outorga_valida`); aggregate `int_qt_volumeanual` by municipality for baseline water capacity and demand. |
 
 ---
 
@@ -41,76 +36,71 @@ Run `analysis/01_preprocess.R` to download and process them automatically.
 
 | Field | Value |
 |---|---|
-| Provider | ANEEL |
-| Dataset | Micro e Minigeração Distribuída — SIGEL |
-| Access URL | https://sigel.aneel.gov.br/sigel.html |
-| Alternative | https://dadosabertos.aneel.gov.br/ |
+| Dataset | Micro e Minigeração Distribuída (distributed generation) |
+| Access URL | https://dadosabertos.aneel.gov.br/ |
+| Alternative | https://sigel.aneel.gov.br/sigel.html |
 | Format | CSV |
-| Temporal coverage | 2012–2025 |
+| Temporal coverage | 2012–2024 |
 | Spatial resolution | Municipal (geocoded connection point) |
-| Date accessed | TODO |
+| Date accessed | [15 July 2026] |
 | License | Dados Abertos ANEEL |
 | Local path | `data/raw/ANEEL/` |
-| Notes | Filter for `modalidade == "Microgeração"` + `fonte == "Solar Fotovoltaica"` |
+| Notes | Filter `modalidade == "Microgeração"` and `fonte == "Solar Fotovoltaica"`; aggregate installed capacity and installation counts by municipality and by year. |
 
 ---
 
-## MapBiomas
+## MapBiomas — Collection 10.1
 
 | Field | Value |
 |---|---|
-| Provider | MapBiomas — Projeto de Mapeamento Anual da Cobertura e Uso do Solo do Brasil |
-| Dataset | Coleção 9 — Annual Land Use and Land Cover |
-| Access URL | https://brasil.mapbiomas.org/colecoes-mapbiomas/ |
-| Download | Google Earth Engine: `projects/mapbiomas-public/assets/brazil/lulc/collection9/mapbiomas_collection90_integration_v1` |
-| Format | GeoTIFF (30 m, WGS84 / EPSG:4326) |
+| Dataset | Annual Land Use and Land Cover — **statistics** (not rasters) |
+| Access URL | https://brasil.mapbiomas.org/estatisticas/ |
+| Format | XLSX (`COVERAGE_10.1` sheet, wide format: one column per year 1985–2024) |
+| Unit | Area in hectares |
+| Key columns | `class_level_1`, `class_level_2`, municipality identifier, annual area columns |
 | Temporal coverage | 1985–2024 (annual) |
-| Spatial resolution | 30 m |
-| Date accessed | TODO |
-| License | CC BY 4.0 |
+| Date accessed | [15 July 2026] |
+| License | ⚠️ MapBiomas is typically **CC BY-SA 4.0** — confirm, as share-alike may interact with this repository's CC BY 4.0 data license (see note below) |
 | Local path | `data/raw/MapBiomas/` |
-| Notes | ⚠️ Files are large (> 100 MB per year). See `01_preprocess.R` for automated GEE download. Classes used: 3 (forest), 15 (pasture), 39/20/40/62 (agriculture), 24 (urban), 33 (water). |
+| Notes | Municipality names are reconciled to the ANA shapefile spelling (e.g., "Biritiba Mirim" → "Biritiba-Mirim"). The **Photovoltaic Project** class is preserved as a separate `fotovoltaica` macro-class to support the energy pillar. |
 
-**MapBiomas Urbano (supplementary):**
-
-| Field | Value |
-|---|---|
-| Dataset | MapBiomas Urbano — Mapeamento das áreas urbanizadas do Brasil |
-| Access URL | https://urbano.mapbiomas.org/ |
-| Notes | Used for urban footprint time series (1985–2024) |
+> **Licensing note:** if MapBiomas data are redistributed within this repository
+> under share-alike terms, any derivative combining them may inherit that
+> obligation. The processed land-cover files here are aggregates; confirm that
+> redistributing them under CC BY 4.0 is compatible, or credit MapBiomas under
+> its own license and keep only the derived statistics.
 
 ---
 
-## IPCC AR6 — Climate Scenarios
+## IPCC AR6 — Climate Forcing
 
 | Field | Value |
 |---|---|
-| Provider | IPCC / NASA |
-| Dataset | NEX-GDDP-CMIP6 — NASA Earth Exchange Global Daily Downscaled Climate Projections |
-| Access URL | https://www.nccs.nasa.gov/services/data-collections/land-based-products/nex-gddp-cmip6 |
-| Alternative | IPCC WGI Interactive Atlas: https://interactive-atlas.ipcc.ch/ |
-| Format | NetCDF (.nc) |
-| Variables used | `pr` (precipitation, kg/m²/s), `tas` (near-surface air temperature, K) |
-| Scenarios | SSP2-4.5, SSP5-8.5 |
-| Models selected | TODO: select ensemble (recommend ≥ 3 GCMs for uncertainty range) |
-| Temporal coverage | 2015–2100 (monthly) |
-| Spatial resolution | ~25 km (downscaled) |
-| Date accessed | TODO |
+| Dataset | AR6 regional projected warming (**mean temperature deltas**) |
+| Access URL | IPCC WGI Interactive Atlas: https://interactive-atlas.ipcc.ch/ |
+| Region | South-Eastern South America (SAM/SES) |
+| Format | CSV (tabular deltas — no NetCDF) |
+| Variable used | Near-surface temperature anomaly (°C), mid-century vs. 1995–2014 baseline |
+| Scenarios / values | SSP2-4.5: +1.4 °C · SSP5-8.5: +2.1 °C (median mid-century) |
+| Date accessed | [15 July 2026] |
 | License | CC BY 4.0 |
 | Local path | `data/raw/IPCC/` |
-| Notes | Crop to bounding box of study watershed before storing locally |
+| Notes | Warming deltas drive `climate-availability-factor` in the model via `et-sensitivity` (~4% effective-water loss per +1 °C). No downscaled grids are stored or processed. |
 
 ---
 
 ## Processed Data
 
-Files in `data/processed/` are generated by `analysis/01_preprocess.R`.
-Do not edit manually.
+Files in `data/processed/` (and the model setup file in `data/model_inputs/`) are
+generated by the preprocessing pipeline in `analysis/`. Do not edit manually.
 
-| File | Description | Generated by |
-|---|---|---|
-| `lulc_basin_1985_2024.csv` | Annual land use shares in study basin | `01_preprocess.R` |
-| `water_withdrawals_monthly.csv` | Monthly withdrawals by sector | `01_preprocess.R` |
-| `solar_adoption_municipal.csv` | Cumulative solar GD by municipality | `01_preprocess.R` |
-| `climate_monthly_ssp245.csv` | Monthly precip + temp, SSP2-4.5 | `01_preprocess.R` |
-| `climate_monthly_ssp585.csv` | Monthly precip + temp, SSP5-8.5 | `01_preprocess.R` |
+| File | Description |
+|---|---|
+| `land_cover_shares.csv` | Annual land-cover shares by class (MapBiomas Col. 10.1) |
+| `solar_dg_by_municipality.csv` | Installed solar DG capacity by municipality (ANEEL) |
+| `solar_dg_annual.csv` | New and cumulative PV installations by year (ANEEL) |
+| `water_permits_by_municipality_purpose.csv` | Granted water volumes by municipality and use (ANA) |
+| `model_inputs/municipality_initial_conditions.csv` | 1985 land-cover areas + baseline water capacity/demand per municipality (model setup) |
+
+*(Exact processed filenames should match the outputs of your preprocessing
+scripts — confirm against `analysis/` and `data/processed/`.)*

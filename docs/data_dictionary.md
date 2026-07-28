@@ -1,68 +1,110 @@
 # Data Dictionary
 
-Variables used across model, analysis scripts, and outputs.
-All variables use **snake_case** in R and **kebab-case** in NetLogo.
+Variables used across the model, analysis scripts, and outputs.
+Model variables use **kebab-case** in NetLogo; analysis variables use
+**snake_case** in R. This dictionary reflects the state variables actually
+declared in `model/wef_nexus_watershed_alto_tiete.nlogox` (NetLogo 7.0.4).
 
 ---
 
-## Agent State Variables (NetLogo)
+## Agent / Spatial-Unit State Variables (NetLogo)
 
-### periurban-farmer
+### `municipality` (36 units — the local resource manager)
+
 | Variable | Type | Unit | Description |
 |---|---|---|---|
-| `land-area` | float | ha | Total farmed area |
-| `crop-type` | string | — | Dominant crop (vegetables / fruits / grains) |
-| `water-demand` | float | m³/month | Crop water requirement under optimal conditions |
-| `actual-irrigation` | float | m³/month | Actual irrigation applied (may be < demand if restricted) |
-| `irrigation-tech` | string | — | Irrigation technology (sprinkler / drip / flood) |
-| `has-solar-pump` | bool | — | Whether farmer has solar-powered pump |
-| `income` | float | BRL/month | Net farming income |
-| `tenure-security` | float | [0,1] | Index of land tenure security (1 = formal title) |
-| `sell-pressure` | float | [0,1] | Probability of selling land in current step |
+| `ibge-code` | string | — | IBGE municipal code |
+| `muni-name` | string | — | Municipality name |
+| `area-native` | float | ha | Native vegetation area |
+| `area-farming` | float | ha | Agricultural area |
+| `area-urban` | float | ha | Urban area |
+| `area-water` | float | ha | Water-body area |
+| `area-pv` | float | ha | Photovoltaic (solar plant) area |
+| `area-other` | float | ha | Other / non-vegetated area |
+| `total-area` | float | ha | Sum of all land-cover areas |
+| `water-demand-irrigation` | float | m³/year | Aggregate irrigation demand (ANA-derived) |
+| `baseline-water-capacity` | float | m³/year | Permitted water availability (ANA-derived) |
+| `water-available` | float | m³/year | Availability after climate forcing |
+| `water-stress` | float | ratio | Governance-adjusted demand / availability (cost; may exceed 1) |
+| `restriction-level` | float | [0,1] | Restriction coefficient applied under fragmented governance |
 
-### solar-prosumer
+### `farmer` (nested within a municipality)
+
 | Variable | Type | Unit | Description |
 |---|---|---|---|
-| `solar-capacity` | float | kWp | Installed solar panel capacity |
-| `pump-capacity` | float | kW | Irrigation pump motor capacity |
-| `energy-generated` | float | kWh/month | Monthly solar generation |
-| `water-withdrawal` | float | m³/month | Water pumped for irrigation |
-| `payback-period` | float | years | Estimated payback period at adoption |
+| `home-muni` | agent | — | Municipality the farmer belongs to |
+| `farm-area` | float | ha | Farmed area |
+| `crop-water-demand` | float | model units | Ideal crop water requirement (`farm-area × base-water-per-ha`) |
+| `has-solar-pump?` | bool | — | Whether the farmer has adopted a solar pump |
+| `irrigation-demanded` | float | model units | Water demanded after adoption-driven demand fraction |
+| `irrigation-applied` | float | model units | Water actually applied after restriction |
+| `income` | float | BRL | Net farming income |
+| `tenure-security` | float | [0,1] | Land-tenure security (assigned at setup, 0.4–1.0) |
+| `sell-pressure` | float | [0,1] | Propensity to exit farming |
 
-### water-manager
-| Variable | Type | Unit | Description |
-|---|---|---|---|
-| `water-stock` | float | Mm³ | Available water in managed reservoir/river reach |
-| `total-grants` | float | m³/month | Sum of all active withdrawal permits |
-| `restriction-level` | float | [0,1] | Current restriction coefficient (0 = no restriction) |
-| `governance-mode` | string | — | "fragmented" or "integrated" |
+> **Prosumers are endogenous.** There is no separately populated prosumer agent:
+> a farmer becomes a rural solar prosumer when `has-solar-pump?` toggles to
+> `true` during the solar-adoption submodel. (A `prosumer` breed is declared in
+> the source for extensibility but is not instantiated in this version.)
 
 ---
 
-## Patch (environment) Variables
+## Global Parameters (set in `set-parameters`)
 
-| Variable | Type | Unit | Description |
+| Parameter | Value | Unit | Role |
 |---|---|---|---|
-| `land-use` | string | — | Current class: agriculture / urban / native / water |
-| `soil-moisture` | float | mm | Soil water content |
-| `land-value-index` | float | [0,1] | Relative land market pressure |
-| `slope` | float | % | Terrain slope |
-| `upstream?` | bool | — | Whether patch is upstream in watershed |
+| `start-year` / `end-year` | 1985 / 2065 | year | Simulation horizon |
+| `hectares-per-farmer` | 100 | ha | Farmers created per unit farming area |
+| `solar-start-year` | 2013 | year | Solar adoption onset |
+| `solar-innovation-coef` | 0.003 | — | Bass diffusion — innovation |
+| `solar-imitation-coef` | 0.25 | — | Bass diffusion — imitation |
+| `max-solar-adoption` | 0.20 | fraction | Municipal adoption ceiling |
+| `base-water-per-ha` | 0.5 | model units/ha | Baseline crop water coefficient |
+| `no-pump-irrigation-frac` | 0.55 | fraction | Demand fraction without solar pump |
+| `solar-pump-irrigation-frac` | 0.95 | fraction | Demand fraction with solar pump (rebound) |
+| `stress-threshold` | 0.8 | ratio | Stress level triggering restriction |
+| `restriction-strength` | 0.5 | [0,1] | Restriction applied when triggered |
+| `integrated-efficiency-gain` | 0.3 | fraction | Demand-side saving under integrated governance |
+| `base-conversion-rate` | 0.0013 | /year | Base farming→urban conversion rate |
+| `urban-pressure-coef` | 0.5 | — | Urban-share multiplier on conversion |
+| `water-stress-exit-coef` | 0.3 | — | Water-stress multiplier on conversion |
+| `warming-ssp245` | 1.4 | °C | Mid-century warming, SSP2-4.5 |
+| `warming-ssp585` | 2.1 | °C | Mid-century warming, SSP5-8.5 |
+| `et-sensitivity` | 0.04 | /°C | Fractional water loss per +1 °C |
+| `climate-onset-year` | 2025 | year | Start of climate forcing ramp |
 
 ---
 
-## Output / Analysis Variables (R)
+## Global Nexus Indices (NetLogo → recorded per tick)
 
-| Variable | File | Unit | Description |
-|---|---|---|---|
-| `water_index` | outputs/tables/ | [0,1] | Water availability normalized to baseline |
-| `energy_index` | outputs/tables/ | [0,1] | Local GD / total consumption |
-| `food_index` | outputs/tables/ | [0,1] | Periurban food output normalized to baseline |
-| `wef_index` | outputs/tables/ | [0,1] | Mean of three indices above |
-| `rebound_rate` | outputs/tables/ | % | Increase in water withdrawal per unit of solar adoption |
-| `lulc_agri_share` | outputs/tables/ | % | % of basin area in agricultural use |
-| `lulc_urban_share` | outputs/tables/ | % | % of basin area in urban use |
-| `n_prosumers` | outputs/tables/ | count | Number of solar prosumer agents |
+| Variable | Unit | Definition |
+|---|---|---|
+| `basin-water-index` | [0,1] | Unweighted municipal mean of `1 − min(1, water-stress)` (benefit; higher = better) |
+| `basin-food-index` | [0,1] | Demand-weighted `Σ irrigation-applied / Σ irrigation-demanded` over farmers |
+| `basin-energy-index` | [0,1] | `min(1, adopted-fraction / max-solar-adoption)` — **descriptive; not in composite** |
+| `basin-wef-index` | [0,1] | Composite = `(basin-water-index + basin-food-index) / 2` (water + food only) |
+
+---
+
+## Output / Analysis Variables (R — BehaviorSpace export)
+
+| Variable | Unit | Description |
+|---|---|---|
+| `run` | int | BehaviorSpace run identifier |
+| `climate` | string | `historical` / `ssp245` / `ssp585` |
+| `governance` | string | `fragmented` / `integrated` |
+| `year` | year | Simulation year |
+| `water_index` | [0,1] | `basin-water-index` |
+| `food_index` | [0,1] | `basin-food-index` |
+| `energy_index` | [0,1] | `basin-energy-index` (descriptive) |
+| `wef_index` | [0,1] | `basin-wef-index` — mean of water and food |
+| `urban_pct` / `farming_pct` | % | Basin urban / farming share |
+| `n_farmers` | count | Active farmer agents |
+| `solar_pumps` | count | Farmers with a solar pump |
+
+> The composite reported in the paper is the Water–Food index,
+> `wf = (water_index + food_index) / 2`. Energy is reported
+> descriptively as the driver of the pumping rebound.
 
 ---
 
@@ -70,8 +112,9 @@ All variables use **snake_case** in R and **kebab-case** in NetLogo.
 
 | ID | Climate | Governance | Description |
 |---|---|---|---|
-| S0 | Historical | Fragmented | Baseline (calibration) |
+| S0 | Historical | Fragmented | Baseline (validation) |
 | S1 | SSP2-4.5 | Fragmented | Moderate climate, status quo governance |
 | S2 | SSP5-8.5 | Fragmented | High emissions, status quo governance |
-| S3 | SSP2-4.5 | Integrated | Moderate climate, coordinated policy |
-| S4 | SSP5-8.5 | Integrated | High emissions, coordinated policy |
+| S3 | Historical | Integrated | Baseline climate, coordinated governance |
+| S4 | SSP2-4.5 | Integrated | Moderate climate, coordinated governance |
+| S5 | SSP5-8.5 | Integrated | High emissions, coordinated governance |

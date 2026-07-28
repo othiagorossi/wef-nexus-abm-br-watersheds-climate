@@ -1,23 +1,41 @@
 cff-version: 1.2.0
 message: "If you use this model or data, please cite it as below."
 type: software
-title: "WEF Nexus ABM: Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds"
+title: "Modeling the Water–Energy–Food Nexus in a Brazilian Periurban Watershed: An Agent-Based Simulation Under Climate Change Scenarios"
 abstract: >
-  Agent-based model (ABM) simulating Water-Energy-Food (WEF) nexus dynamics
-  in a Brazilian periurban watershed under IPCC AR6 climate scenarios (SSP2-4.5
-  and SSP5-8.5). Integrates open datasets from ANA, ANEEL, and MapBiomas.
-  Developed as part of a manuscript submitted to Water (MDPI), Special Issue
-  "The Water-Energy-Food Nexus: Toward Integrated Solutions for Sustainability".
+  Agent-based model (ABM) simulating Water-Energy-Food (WEF) nexus dynamics in
+  the Alto Tietê basin (UGRHI 6, São Paulo, Brazil) across a historical baseline
+  and two IPCC AR6 climate scenarios (SSP2-4.5 and SSP5-8.5), under contrasting
+  water-governance regimes (fragmented vs. integrated). Integrates open datasets
+  from ANA, ANEEL, MapBiomas (Collection 10.1), and IPCC AR6. Developed for a
+  manuscript submitted to Water (MDPI), Special Issue "The Water-Energy-Food
+  Nexus: Toward Integrated Solutions for Sustainability".
 authors:
-  - family-names: Angrizanes Rossi, Mori Sarti
-    given-names: Thiago Joel, Flávia
+  - family-names: "Angrizanes Rossi"
+    given-names: "Thiago Joel"
     affiliation: "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
     orcid: "https://orcid.org/0000-0002-8246-2393"
+  - family-names: "Mazzotti Silvestrini"
+    given-names: "Murilo"
+    affiliation: "Institute of Mathematics, Statistics and Scientific Computing, State University of Campinas"
+    orcid: "https://orcid.org/0000-0001-9216-3971"
+  - family-names: "Stanzani Klapka"
+    given-names: "Cecília"
+    affiliation: "School of Public Health, University of Sao Paulo"
+    orcid: "https://orcid.org/0009-0009-7174-0763"
+  - family-names: "Mori Sarti"
+    given-names: "Flávia"
+    affiliation: "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
+    orcid: "https://orcid.org/0000-0003-2834-2005"
 repository-code: "https://github.com/othiagorossi/wef-nexus-abm-br-watersheds-climate"
 license: MIT
 license-url: "https://opensource.org/licenses/MIT"
-version: "0.1.0"
-date-released: "2026-05-22"
+version: "1.0.0"
+date-released: "2026-07-27"
+identifiers:
+  - type: doi
+    value: "10.5281/zenodo.20347728"
+    description: "Concept DOI (resolves to the latest version)"
 keywords:
   - water-energy-food nexus
   - agent-based modeling
@@ -35,10 +53,16 @@ preferred-citation:
     An Agent-Based Simulation Grounded in Institutional Governance Fragmentation
     and Climate Change Scenarios
   authors:
-    - family-names: Angrizanes Rossi, Mori Sarti
-      given-names: Thiago Joel, Flávia
+    - family-names: "Angrizanes Rossi"
+      given-names: "Thiago Joel"
+    - family-names: "Mazzotti Silvestrini"
+      given-names: "Murilo"
+    - family-names: "Stanzani Klapka"
+      given-names: "Cecília"
+    - family-names: "Mori Sarti"
+      given-names: "Flávia"
   journal: "Water"
   publisher: "MDPI"
   year: 2026
-  doi: "10.5281/zenodo.20347727"
-  url: ""   # TODO: insert URL after acceptance
+  doi: ""   
+  url: ""   

@@ -1,50 +1,78 @@
 {
   "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
   "@type": "SoftwareSourceCode",
-  "name": "WEF Nexus ABM: Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds",
-  "description": "Agent-based model simulating WEF nexus dynamics in a Brazilian periurban watershed under IPCC AR6 climate scenarios. Integrates ANA, ANEEL, MapBiomas, and IPCC open datasets.",
-  "version": "0.1.0",
-  "dateCreated": "2026-04-24",
-  "datePublished": "",
-  "license": "https://spdx.org/licenses/MIT",
-  "codeRepository": "https://github.com/oThiagoRossi/wef-nexus-abm",
+  "name": "Modeling the Water–Energy–Food Nexus in a Brazilian Periurban Watershed: An Agent-Based Simulation Under Climate Change Scenarios",
+  "description": "Agent-based model (NetLogo) simulating Water-Energy-Food nexus dynamics in the Alto Tietê basin (UGRHI 6, São Paulo, Brazil) across a historical baseline and two IPCC AR6 climate scenarios (SSP2-4.5, SSP5-8.5) under fragmented vs. integrated water governance. Integrates open data from ANA, ANEEL, MapBiomas (Collection 10.1), and IPCC AR6.",
+  "version": "1.0.0",
+  "datePublished": "2026-07-27",
+  "license": "https://spdx.org/licenses/MIT.html",
+  "codeRepository": "https://github.com/othiagorossi/wef-nexus-abm-br-watersheds-climate",
+  "identifier": "https://doi.org/10.5281/zenodo.20347727",
+  "applicationCategory": "Agent-based modeling; socio-hydrology; sustainability science",
+  "developmentStatus": "active",
   "programmingLanguage": [
-    { "@type": "ComputerLanguage", "name": "NetLogo", "version": "6.4.0" },
-    { "@type": "ComputerLanguage", "name": "R",       "version": ">=4.3.0" }
+    { "@type": "ComputerLanguage", "name": "NetLogo", "version": "7.0.4" },
+    { "@type": "ComputerLanguage", "name": "R", "version": ">=4.3.0" }
   ],
-  "author": [
-    {
-      "@type": "Person",
-      "givenName": "Thiago",
-      "familyName": "Rossi",
-      "affiliation": {
-        "@type": "Organization",
-        "name": "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
-      },
-      "@id": ""
-    }
-  ],
+  "runtimePlatform": "NetLogo 7.0.4; R >= 4.3.0",
+  "operatingSystem": ["Linux", "macOS", "Windows"],
   "keywords": [
     "water-energy-food nexus",
     "agent-based modeling",
     "periurban agriculture",
-    "distributed solar energy",
+    "distributed energy",
     "governance fragmentation",
-    "climate change scenarios",
+    "climate change",
     "Brazil",
-    "FAIR data",
-    "NetLogo"
+    "NetLogo",
+    "FAIR data"
   ],
-  "softwareRequirements": [
-    "NetLogo >= 6.4.0",
-    "R >= 4.3.0",
-    "renv (R package for environment reproducibility)"
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Thiago Joel",
+      "familyName": "Angrizanes Rossi",
+      "@id": "https://orcid.org/0000-0002-8246-2393",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
+      }
+    },
+    {
+      "@type": "Person",
+      "givenName": "Murilo",
+      "familyName": "Mazzotti Silvestrini",
+      "@id": "https://orcid.org/0000-0001-9216-3971",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "Institute of Mathematics, Statistics and Scientific Computing, State University of Campinas"
+      }
+    },
+    {
+      "@type": "Person",
+      "givenName": "Cecília",
+      "familyName": "Stanzani Klapka",
+      "@id": "https://orcid.org/0009-0009-7174-0763",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "School of Public Health, University of Sao Paulo"
+      }
+    },
+    {
+      "@type": "Person",
+      "givenName": "Flávia",
+      "familyName": "Mori Sarti",
+      "affiliation": {
+        "@type": "Organization",
+        "name": "School of Arts, Sciences and Humanities (EACH), University of São Paulo (USP)"
+      }
+    }
   ],
-  "relatedLink": "",
   "referencePublication": {
     "@type": "ScholarlyArticle",
-    "name": "Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds",
-    "journal": "Water (MDPI)",
-    "doi": ""
+    "name": "Modeling the Water-Energy-Food Nexus in Brazilian Periurban Watersheds: An Agent-Based Simulation Grounded in Institutional Governance Fragmentation and Climate Change Scenarios",
+    "isPartOf": { "@type": "Periodical", "name": "Water", "publisher": "MDPI" },
+    "datePublished": "2026",
+    "identifier": ""
   }
 }

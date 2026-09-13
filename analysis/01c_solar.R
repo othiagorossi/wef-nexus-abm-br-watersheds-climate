@@ -1,19 +1,3 @@
-# 01c_solar.R
-# ANEEL distributed generation -> data/processed/solar_dg_*.csv
-#
-# Run as a SEPARATE process (Rscript).
-#
-# The national registry holds millions of records and does not fit in memory,
-# so it is read in CHUNKS and filtered on the fly: only solar PV installations
-# inside the basin survive each chunk. Column selection happens INSIDE the
-# chunk callback (read_delim_chunked does not accept col_select).
-#
-# The registry carries cod_municipio_ibge, so the spatial join uses the IBGE
-# code directly — immune to spelling inconsistencies.
-#
-# KEY VARIABLE: dsc_classe_consumo. Rural-class installations are the
-# agricultural prosumers through which the solar pumping rebound operates.
-
 suppressPackageStartupMessages({
   library(here); library(dplyr); library(readr); library(stringr)
   library(janitor); library(lubridate)
@@ -28,14 +12,12 @@ if (!file.exists(aneel_path)) {
   stop("ANEEL file not found. Run analysis/00_download.R first.")
 }
 
-# Columns kept from each chunk (after clean_names()).
 KEEP_COLS <- c(
   "sig_uf", "cod_municipio_ibge", "nom_municipio",
   "dsc_fonte_geracao", "dsc_classe_consumo", "sig_modalidade_empreendimento",
   "dsc_porte", "mda_potencia_instalada_kw", "dth_atualiza_cadastral_empreend"
 )
 
-# Applied to every chunk: clean names, filter to basin solar, keep few columns.
 keep_basin_solar <- function(chunk, pos) {
   chunk |>
     clean_names() |>
@@ -77,7 +59,6 @@ solar <- solar |>
   left_join(BASIN_MUNICIPALITIES |> select(ibge_code, municipality),
             by = "ibge_code")
 
-# --- Diagnostics ------------------------------------------------------------
 message("\nBy consumption class:")
 print(count(solar, consumption_class, sort = TRUE) |> head(10))
 
@@ -96,7 +77,6 @@ print(summary(solar$capacity_kw))
 
 write_processed(solar, "solar_dg_basin.csv")
 
-# --- Annual adoption curve (ABM calibration target) -------------------------
 solar_annual <- solar |>
   filter(!is.na(year), year >= 2012, year <= year(Sys.Date())) |>
   group_by(year) |>
@@ -114,7 +94,6 @@ write_processed(solar_annual, "solar_dg_annual.csv")
 message("\nAdoption curve:")
 print(solar_annual, n = Inf)
 
-# --- By municipality (ABM initialisation) -----------------------------------
 solar_by_muni <- solar |>
   group_by(ibge_code, municipality) |>
   summarise(

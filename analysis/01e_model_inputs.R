@@ -6,10 +6,9 @@ source(here("analysis", "utils.R"))
 DIR_MODEL <- here("data", "model_inputs")
 if (!dir.exists(DIR_MODEL)) dir.create(DIR_MODEL, recursive = TRUE)
 
-# Standard-CSV writer for NetLogo (comma sep, dot decimal, no quotes on numbers)
 write_model <- function(df, filename) {
   path <- file.path(DIR_MODEL, filename)
-  readr::write_csv(df, path, na = "0")   # NetLogo reads empty as trouble; use 0
+  readr::write_csv(df, path, na = "0") 
   message("[ok] Saved: ", file.path("data/model_inputs", filename),
           " (", nrow(df), " rows)")
   invisible(path)
@@ -20,9 +19,6 @@ BASE_YEAR <- 1985
 land <- read_csv2(here("data", "processed", "land_cover_series.csv"),
                   show_col_types = FALSE)
 
-# All macro-classes the model expects, in fixed order. Classes absent in the
-# base year (e.g. photovoltaic, which appears only from ~2015) must still yield
-# a zero column.
 MACRO_CLASSES <- c("native_vegetation", "farming", "urban",
                    "water", "photovoltaic", "non_vegetated_other", "other")
 

@@ -67,7 +67,6 @@ p_land <- ggplot(land, aes(year, share_pct, color = macro_class)) +
   theme(legend.position = "bottom", panel.grid.minor = element_blank()) +
   guides(color = guide_legend(nrow = 2))
 
-# ── 2. Adoção solar (ANEEL) — curva S acumulada, eixo único ──────────────────
 solar_ann <- read_csv2(here("data", "processed", "solar_dg_annual.csv"),
                        show_col_types = FALSE)
 
@@ -90,3 +89,53 @@ p_combo <- p_land + p_solar +
 
 save_fig(p_combo, "06_temporal_trajectories.pdf", width = 26, height = 11)
 message("[ok] Dinâmicas temporais (lado a lado) geradas (06_temporal_trajectories.pdf).")
+
+lc_csv <- here::here("data", "model_inputs","validation_land_cover.csv")   # <- aponte p/ a série OBSERVADA
+lc_raw <- read.csv(lc_csv, check.names = FALSE, stringsAsFactors = FALSE)
+cat("\n[2A] colunas do arquivo:\n"); print(names(lc_raw))
+
+year_col   <- "year"                 
+class_cols <- c(native  = "native_vegetation",  
+                farming = "farming", 
+                urban   = "urban")
+
+yc <- year_col
+nc <- class_cols[["native"]]; fc <- class_cols[["farming"]]; uc <- class_cols[["urban"]]
+
+long <- lc_raw %>%
+  transmute(year    = as.numeric(.data[[yc]]),
+            native  = as.numeric(.data[[nc]]),
+            farming = as.numeric(.data[[fc]]),
+            urban   = as.numeric(.data[[uc]])) %>%
+  pivot_longer(c(native, farming, urban), names_to = "class", values_to = "share")
+
+# frações em 0–1? converte para %
+if (max(long$share, na.rm = TRUE) <= 1.5) long$share <- 100 * long$share
+
+lc_levels <- c("Native vegetation", "Farming", "Urban")   # base -> topo da pilha
+lc_cols   <- c("Native vegetation" = "#2E7D32",
+               "Farming"           = "#C9A227",
+               "Urban"             = "#8C8C8C")
+
+long <- long %>%
+  mutate(class = recode(class,
+                        native = "Native vegetation",
+                        farming = "Farming",
+                        urban = "Urban"),
+         class = factor(class, levels = lc_levels))        # trava cor/legenda/pilha
+
+cat("\n[2A] Reconciliação 2024 (esperado ~46 / 21 / 29, soma ~100):\n")
+long %>% filter(year == 2024) %>% arrange(class) %>% as.data.frame() %>% print(row.names = FALSE)
+
+p2a_fixed <- ggplot(long, aes(year, share, fill = class)) +
+  geom_area(position = "stack", colour = NA) +
+  scale_fill_manual(values = lc_cols, name = "Land cover", breaks = lc_levels) +
+  labs(x = "Year", y = "Share of basin area (%)") +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "top", panel.grid.minor = element_blank())
+
+ggsave(here::here("outputs","figures","fig2a_landcover_fixed.png"),
+       p2a_fixed, width = 7, height = 4.2, dpi = 300, bg = "white")
+ggsave(here::here("outputs","figures","fig2a_landcover_fixed.pdf"),
+       p2a_fixed, width = 7, height = 4.2, device = cairo_pdf, bg = "white")
+cat("\n[2A] salvo: fig2a_landcover_fixed .png/.pdf\n")

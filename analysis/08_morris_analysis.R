@@ -3,7 +3,7 @@ suppressPackageStartupMessages({
   library(readr); library(ggrepel)
 })
 source(here("analysis", "utils.R"))
-source(here("analysis", "04_figures.R"))  # save_fig (convenção 300 DPI)
+source(here("analysis", "04_figures.R"))
 
 res_path <- here("outputs", "tables", "morris_mu_sigma.csv")
 if (!file.exists(res_path)) stop("Resultados do método de Morris não encontrados: ", res_path)

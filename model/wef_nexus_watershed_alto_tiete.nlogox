@@ -22,14 +22,13 @@ globals [
   solar-imitation-coef
   max-solar-adoption
   ;; Irrigation / rebound
-  base-water-per-ha
   no-pump-irrigation-frac
   solar-pump-irrigation-frac
   ;; Water allocation / governance
   climate-availability-factor
   stress-threshold
   restriction-strength
-  integrated-efficiency-gain
+  
   ;; Land-use transition
   base-conversion-rate
   urban-pressure-coef
@@ -41,11 +40,13 @@ globals [
   warming-ssp585
   et-sensitivity
   climate-onset-year
-
+  native-release?
+  native-to-farming-share
   basin-water-index
   basin-energy-index
   basin-food-index
   basin-wef-index
+  basin-abstraction-realised
 ]
 
 municipalities-own [
@@ -63,6 +64,7 @@ municipalities-own [
   water-available
   water-stress
   restriction-level
+  water-stress-realised
 ]
 
 farmers-own [
@@ -75,6 +77,7 @@ farmers-own [
   income
   tenure-security
   sell-pressure
+  water-per-ha
 ]
 
 prosumers-own [
@@ -89,8 +92,13 @@ prosumers-own [
 ; SETUP
 ; ============================================================================
 to setup
-  clear-all
-  set-parameters
+  clear-turtles
+  clear-patches
+  clear-links
+  clear-drawing
+  clear-all-plots
+  clear-output
+  if behaviorspace-run-number = 0 [ set-parameters ]
   set start-year 1985
   set end-year 2065
   set current-year start-year
@@ -147,10 +155,18 @@ end
 to populate-farmers
   ask municipalities [
     let n-farmers max list 0 (round (area-farming / hectares-per-farmer))
+    let muni-wpha ifelse-value (area-farming > 0)
+      [ (baseline-water-capacity * initial-utilisation) / area-farming ]
+      [ 0 ]
+    let local-farmers farmers with [ home-muni = myself ]
+    let target (baseline-water-capacity * initial-utilisation)
+    let raw sum [ farm-area * water-per-ha ] of local-farmers
+    if raw > 0 [ ask local-farmers [ set water-per-ha (water-per-ha * target / raw) ] ]
     hatch-farmers n-farmers [
       set breed farmers
       set home-muni myself
       set farm-area hectares-per-farmer
+      set water-per-ha (muni-wpha * (0.7 + random-float 0.6))
       set crop-water-demand 0
       set has-solar-pump? false
       set irrigation-demanded 0
@@ -169,18 +185,17 @@ end
 
 to set-parameters
   ;; Solar pumping rebound — adoption stage
-  set solar-start-year      2013
-  set solar-innovation-coef 0.003
-  set solar-imitation-coef  0.25
+  set solar-start-year      2018
+  set solar-innovation-coef 0.008
+  set solar-imitation-coef  0.7
   set max-solar-adoption    0.20
   ;; Irrigation / rebound — abstraction stage
-  set base-water-per-ha          0.5
   set no-pump-irrigation-frac    0.55
   set solar-pump-irrigation-frac 0.95
   ;; Water allocation / governance
   set stress-threshold           0.8
   set restriction-strength       0.5
-  set integrated-efficiency-gain 0.3
+  
   ;; Land-use displacement cascade — calibrated to MapBiomas 1985-2024:
   set base-conversion-rate     0.0013
   set urban-pressure-coef      0.5
@@ -193,6 +208,22 @@ to set-parameters
   set warming-ssp585        2.1
   set et-sensitivity        0.04
   set climate-onset-year    2025
+  set native-release?       false
+  set native-to-farming-share  0.5
+end
+
+to-report calibrated-cut?
+  report member? governance-mode [ "calibrated-cut" "integrated" ]
+end
+
+to-report solar-gating?
+  report member? governance-mode [ "solar-gating" "integrated" ]
+end
+
+to-report irrigating-municipalities
+  report municipalities with [
+    baseline-water-capacity > 0 and any? farmers with [ home-muni = myself ]
+  ]
 end
 
 ; ============================================================================
@@ -205,6 +236,7 @@ to go
   solar-adoption
   irrigation-decision
   water-allocation
+  native-release
   land-use-transition
   update-nexus-indices
   set current-year current-year + 1
@@ -241,16 +273,19 @@ to solar-adoption
   ;; MECHANISM 1 — rebound (adoption stage).
   if current-year < solar-start-year [ stop ]
   ask municipalities [
-    let local-farmers farmers with [ home-muni = myself ]
-    let n-local count local-farmers
-    if n-local > 0 [
-      let adopted-share (count local-farmers with [ has-solar-pump? ]) / n-local
-      if adopted-share < max-solar-adoption [
-        ask local-farmers with [ not has-solar-pump? ] [
-          let p (solar-innovation-coef + solar-imitation-coef * adopted-share)
-          if random-float 1 < p [
-            set has-solar-pump? true
-            set color yellow
+    let gated? (solar-gating? and water-stress > stress-threshold)
+    if not gated? [
+      let eligible farmers with [ home-muni = myself and water-per-ha > 0 ]
+      let n-eligible count eligible
+      if n-eligible > 0 [
+        let adopted-share (count eligible with [ has-solar-pump? ]) / n-eligible
+        if adopted-share < max-solar-adoption [
+          ask eligible with [ not has-solar-pump? ] [
+            let p (solar-innovation-coef + solar-imitation-coef * adopted-share)
+            if random-float 1 < p [
+              set has-solar-pump? true
+              set color yellow
+            ]
           ]
         ]
       ]
@@ -261,7 +296,7 @@ end
 to irrigation-decision
   ;; MECHANISM 1 — rebound (abstraction stage). Food performance = applied / demanded.
   ask farmers [
-    set crop-water-demand (farm-area * base-water-per-ha)
+    set crop-water-demand (farm-area * water-per-ha)
     let affordable-frac ifelse-value has-solar-pump?
       [ solar-pump-irrigation-frac ]
       [ no-pump-irrigation-frac ]
@@ -279,12 +314,8 @@ to water-allocation
   ask municipalities [
     let local-farmers farmers with [ home-muni = myself ]
     let demanded sum [ irrigation-demanded ] of local-farmers
-
-    let efficiency-factor 1
-    if governance-mode = "integrated" [
-      set efficiency-factor (1 - integrated-efficiency-gain)
-    ]
-    let effective-demand (demanded * efficiency-factor)
+    let net-saving (efficiency-gain * (1 - rebound-share))
+    let effective-demand (demanded * (1 - net-saving))
 
     ifelse water-available > 0 [
       set water-stress (effective-demand / water-available)
@@ -293,7 +324,11 @@ to water-allocation
     ]
 
     ifelse water-stress > stress-threshold [
-      set restriction-level restriction-strength
+      ifelse calibrated-cut? [
+        set restriction-level (1 - (stress-threshold / water-stress))
+      ] [
+        set restriction-level restriction-strength
+      ]
     ] [
       set restriction-level 0
     ]
@@ -303,8 +338,16 @@ to water-allocation
       set irrigation-applied (irrigation-demanded * (1 - [restriction-level] of myself))
     ]
 
+    ;; realised stress: abstraction actually delivered vs availability
+    ifelse water-available > 0 [
+      set water-stress-realised (effective-demand * (1 - restriction-level) / water-available)
+    ] [
+      set water-stress-realised 0
+    ]
+
     set color scale-color red water-stress 0 1.5
   ]
+  set basin-abstraction-realised sum [ irrigation-applied ] of farmers
 end
 
 to land-use-transition
@@ -328,16 +371,30 @@ to land-use-transition
   ]
 end
 
+to native-release
+  if native-release? != true [ stop ]
+  let annual-rate 0.00166        
+  let to-farming  native-to-farming-share
+  ask municipalities [
+    if area-native > 0 [
+      let released (area-native * annual-rate)
+      set area-native  (area-native  - released)
+      set area-farming (area-farming + released * to-farming)
+      set area-urban   (area-urban   + released * (1 - to-farming))
+    ]
+  ]
+end
+
 to update-nexus-indices
   set basin-water-index mean-or-zero
-    [ 1 - min list 1 water-stress ] of municipalities
+    [ 1 - min list 1 water-stress-realised ] of irrigating-municipalities
 
   ;; ENERGY: local solar autonomy — share of farmers
   ;; with a solar pump relative to the adoption ceiling. Reported separately,
   ;; NOT summed into the composite: solar adoption is the DRIVER of the rebound,
   ;; its effects are measured through the water and food pillars.
   let n-farmers count farmers
-  ifelse n-farmers > 0 [
+  ifelse n-farmers > 0 and max-solar-adoption > 0 [
     let adopted-frac (count farmers with [ has-solar-pump? ]) / n-farmers
     set basin-energy-index min list 1 (adopted-frac / max-solar-adoption)
   ] [
@@ -345,15 +402,27 @@ to update-nexus-indices
   ]
 
   ;; FOOD: irrigation delivered vs demanded (supply adequacy).
-  let total-demanded sum [ irrigation-demanded ] of farmers
-  ifelse total-demanded > 0 [
-    set basin-food-index (sum [ irrigation-applied ] of farmers / total-demanded)
-  ] [
-    set basin-food-index 0
-  ]
+  let total-demand sum [irrigation-demanded] of farmers
+  set basin-food-index ifelse-value (total-demand > 0)
+   [ (sum [irrigation-applied] of farmers) / total-demand ]
+   [ 1 ]
 
   ;; COMPOSITE — water and food only.
   set basin-wef-index (basin-water-index + basin-food-index) / 2
+  
+end
+
+to-report green-belt-farmers
+  report farmers with [ member? [muni-name] of home-muni
+    [ "MOGI DAS CRUZES" "BIRITIBA-MIRIM" "SUZANO" "SALESÓPOLIS" ] and water-per-ha > 0 ]
+end
+to-report demand-per-ha-solar
+  let f green-belt-farmers with [ has-solar-pump? ]
+  report ifelse-value any? f [ mean [ irrigation-demanded / farm-area ] of f ] [ 0 ]
+end
+to-report demand-per-ha-nosolar
+  let f green-belt-farmers with [ not has-solar-pump? ]
+  report ifelse-value any? f [ mean [ irrigation-demanded / farm-area ] of f ] [ 0 ]
 end
 
 to reset-nexus-indices
@@ -361,6 +430,7 @@ to reset-nexus-indices
   set basin-energy-index 0
   set basin-food-index 0
   set basin-wef-index 0
+  set basin-abstraction-realised 0
 end
 
 ; ============================================================================
@@ -371,15 +441,17 @@ to-report mean-or-zero [ lst ]
 end]]></code>
   <widgets>
     <view x="368" wrappingAllowedX="true" y="10" frameRate="30.0" minPycor="-16" height="434" showTickCounter="true" patchSize="13.0" fontSize="10" wrappingAllowedY="true" width="434" tickCounterLabel="ticks" maxPycor="16" updateMode="0" maxPxcor="16" minPxcor="-16"></view>
-    <chooser x="110" y="60" height="60" variable="climate-scenario" current="1" width="250" display="climate-scenario">
+    <chooser x="110" y="60" height="60" variable="climate-scenario" current="2" width="250" display="climate-scenario">
       <choice type="string" value="historical"></choice>
       <choice type="string" value="ssp245"></choice>
       <choice type="string" value="ssp585"></choice>
     </chooser>
     <button x="305" y="15" height="40" disableUntilTicks="false" forever="true" kind="Observer" width="55" display="Go">go</button>
     <button x="230" y="15" height="40" disableUntilTicks="false" forever="false" kind="Observer" width="70" display="Go Once">go</button>
-    <chooser x="110" y="125" height="60" variable="governance-mode" current="0" width="250" display="governance-mode">
+    <chooser x="110" y="125" height="60" variable="governance-mode" current="3" width="250" display="governance-mode">
       <choice type="string" value="fragmented"></choice>
+      <choice type="string" value="calibrated-cut"></choice>
+      <choice type="string" value="solar-gating"></choice>
       <choice type="string" value="integrated"></choice>
     </chooser>
     <slider x="110" step="10" y="190" max="500" width="250" display="hectares-per-farmer" height="50" min="10" direction="Horizontal" default="100.0" variable="hectares-per-farmer"></slider>
@@ -445,6 +517,9 @@ end]]></code>
         <update>plot basin-energy-index</update>
       </pen>
     </plot>
+    <slider x="110" step="0.05" y="245" max="0.5" width="250" display="efficiency-gain" height="50" min="0" direction="Horizontal" default="0.0" variable="efficiency-gain"></slider>
+    <slider x="110" step="0.05" y="300" max="1.0" width="250" display="initial-utilisation" height="50" min="0.3" direction="Horizontal" default="0.7" variable="initial-utilisation"></slider>
+    <slider x="110" step="0.1" y="355" max="1.0" width="250" display="rebound-share" height="50" min="0" direction="Horizontal" default="0.0" variable="rebound-share"></slider>
   </widgets>
   <info>## WHAT IS IT?
 
@@ -1317,12 +1392,512 @@ end]]></code>
   </linkShapes>
   <previewCommands>setup repeat 75 [ go ]</previewCommands>
   <experiments>
-    <experiment name="scenarios_S0_S4" repetitions="50" sequentialRunOrder="true" runMetricsEveryStep="false">
+    <experiment name="factorial_governance_efficiency" repetitions="50" sequentialRunOrder="true" runMetricsEveryStep="false">
       <setup>setup</setup>
       <go>go</go>
       <metrics>
         <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
         <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>count irrigating-municipalities</metric>
+        <metric><![CDATA[count irrigating-municipalities with [restriction-level > 0]]]></metric>
+        <metric><![CDATA[count irrigating-municipalities with [water-stress > stress-threshold]]]></metric>
+        <metric>max [water-stress] of irrigating-municipalities</metric>
+        <metric>mean [water-stress-realised] of irrigating-municipalities</metric>
+        <metric>sum [irrigation-applied] of farmers with [[muni-name] of home-muni = "MOGI DAS CRUZES"]</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+          <value value="&quot;ssp245&quot;"></value>
+          <value value="&quot;ssp585&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+          <value value="&quot;calibrated-cut&quot;"></value>
+          <value value="&quot;solar-gating&quot;"></value>
+          <value value="&quot;integrated&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2018"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.008"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.7"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1"></value>
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="rebound-share">
+          <value value="0"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="calib_utilisation" repetitions="10" sequentialRunOrder="false" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>max [water-stress] of municipalities</metric>
+        <metric><![CDATA[count municipalities with [water-stress > stress-threshold]]]></metric>
+        <metric>count irrigating-municipalities</metric>
+        <metric><![CDATA[count irrigating-municipalities with [restriction-level > 0]]]></metric>
+        <metric><![CDATA[count irrigating-municipalities with [water-stress > stress-threshold]]]></metric>
+        <metric>max [water-stress] of irrigating-municipalities</metric>
+        <metric>mean [water-stress-realised] of irrigating-municipalities</metric>
+        <metric>sum [irrigation-applied] of farmers with [[muni-name] of home-muni = "MOGI DAS CRUZES"]</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+          <value value="&quot;ssp245&quot;"></value>
+          <value value="&quot;ssp585&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="0.5"></value>
+          <value value="0.7"></value>
+          <value value="0.9"></value>
+          <value value="1.1"></value>
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="rebound-share">
+          <value value="0"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="efficiency_rebound" repetitions="50" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>count irrigating-municipalities</metric>
+        <metric><![CDATA[count irrigating-municipalities with [restriction-level > 0]]]></metric>
+        <metric><![CDATA[count irrigating-municipalities with [water-stress > stress-threshold]]]></metric>
+        <metric>max [water-stress] of irrigating-municipalities</metric>
+        <metric>mean [water-stress-realised] of irrigating-municipalities</metric>
+        <metric>sum [irrigation-applied] of farmers with [[muni-name] of home-muni = "MOGI DAS CRUZES"]</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+          <value value="&quot;ssp245&quot;"></value>
+          <value value="&quot;ssp585&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+          <value value="&quot;integrated&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="rebound-share">
+          <value value="0"></value>
+          <value value="0.5"></value>
+          <value value="1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="solar_counterfactual" repetitions="50" sequentialRunOrder="true" runMetricsEveryStep="false">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>count irrigating-municipalities</metric>
+        <metric><![CDATA[count irrigating-municipalities with [restriction-level > 0]]]></metric>
+        <metric><![CDATA[count irrigating-municipalities with [water-stress > stress-threshold]]]></metric>
+        <metric>max [water-stress] of irrigating-municipalities</metric>
+        <metric>mean [water-stress-realised] of irrigating-municipalities</metric>
+        <metric>sum [irrigation-applied] of farmers with [[muni-name] of home-muni = "MOGI DAS CRUZES"]</metric>
+        <metric>demand-per-ha-solar</metric>
+        <metric>demand-per-ha-nosolar</metric>
+        <metric>count green-belt-farmers with [has-solar-pump?]</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+          <value value="&quot;ssp245&quot;"></value>
+          <value value="&quot;ssp585&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+          <value value="&quot;integrated&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0"></value>
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="rebound-share">
+          <value value="0"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="validation_native_release" repetitions="20" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>current-year</metric>
+        <metric>sum [area-native]  of municipalities / sum [total-area] of municipalities</metric>
+        <metric>sum [area-farming] of municipalities / sum [total-area] of municipalities</metric>
+        <metric>sum [area-urban]   of municipalities / sum [total-area] of municipalities</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="true"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-to-farming-share">
+          <value value="0.3"></value>
+          <value value="0.5"></value>
+          <value value="0.7"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="validation_timeseries" repetitions="50" sequentialRunOrder="false" runMetricsEveryStep="true">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
         <metric>count farmers with [has-solar-pump?]</metric>
         <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
         <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
@@ -1336,15 +1911,700 @@ end]]></code>
       <constants>
         <enumeratedValueSet variable="climate-scenario">
           <value value="&quot;historical&quot;"></value>
-          <value value="&quot;ssp245&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="resolution_independence" repetitions="30" sequentialRunOrder="false" runMetricsEveryStep="false" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>hectares-per-farmer</metric>
+        <metric>count farmers</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>sum [farm-area] of farmers</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="50"></value>
+          <value value="100"></value>
+          <value value="200"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="true"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-to-farming-share">
+          <value value="0.3"></value>
+          <value value="0.5"></value>
+          <value value="0.7"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="baseline_validation_native_release" repetitions="20" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+        <metric>current-year</metric>
+        <metric>sum [area-native]  of municipalities / sum [total-area] of municipalities</metric>
+        <metric>sum [area-farming] of municipalities / sum [total-area] of municipalities</metric>
+        <metric>sum [area-urban]   of municipalities / sum [total-area] of municipalities</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="false"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-to-farming-share">
+          <value value="0.3"></value>
+          <value value="0.5"></value>
+          <value value="0.7"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="base_convertion_calibration" repetitions="15" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="true"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-to-farming-share">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+          <value value="0.002"></value>
+          <value value="0.003"></value>
+          <value value="0.004"></value>
+          <value value="0.005"></value>
+          <value value="0.006"></value>
+          <value value="0.007"></value>
+          <value value="0.008"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="spot_check" repetitions="30" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
           <value value="&quot;ssp585&quot;"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="governance-mode">
           <value value="&quot;fragmented&quot;"></value>
           <value value="&quot;integrated&quot;"></value>
         </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
         <enumeratedValueSet variable="hectares-per-farmer">
           <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.003"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.25"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="true"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-to-farming-share">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0058"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="bass_calibration" repetitions="10" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="false"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2015"></value>
+          <value value="2017"></value>
+          <value value="2018"></value>
+          <value value="2019"></value>
+          <value value="2020"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.001"></value>
+          <value value="0.003"></value>
+          <value value="0.005"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.3"></value>
+          <value value="0.5"></value>
+          <value value="0.7"></value>
+          <value value="0.9"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="bass_calibration_2" repetitions="10" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="false"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2017"></value>
+          <value value="2018"></value>
+          <value value="2019"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.005"></value>
+          <value value="0.008"></value>
+          <value value="0.012"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.7"></value>
+          <value value="0.9"></value>
+          <value value="1.1"></value>
+        </enumeratedValueSet>
+      </constants>
+    </experiment>
+    <experiment name="bass_spot_check" repetitions="30" sequentialRunOrder="false" runMetricsEveryStep="true" timeLimit="80">
+      <setup>setup</setup>
+      <go>go</go>
+      <metrics>
+        <metric>mean [water-stress] of municipalities</metric>
+        <metric>mean [water-stress-realised] of municipalities</metric>
+        <metric>sum [irrigation-demanded] of farmers</metric>
+        <metric>sum [irrigation-applied] of farmers</metric>
+        <metric>basin-abstraction-realised</metric>
+        <metric><![CDATA[count municipalities with [restriction-level > 0]]]></metric>
+        <metric>mean [restriction-level] of municipalities</metric>
+        <metric>count farmers with [has-solar-pump?]</metric>
+        <metric>100 * (sum [area-urban] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>100 * (sum [area-farming] of municipalities) / (sum [total-area] of municipalities)</metric>
+        <metric>count farmers</metric>
+        <metric>current-year</metric>
+        <metric>basin-wef-index</metric>
+        <metric>basin-water-index</metric>
+        <metric>basin-energy-index</metric>
+        <metric>basin-food-index</metric>
+      </metrics>
+      <constants>
+        <enumeratedValueSet variable="climate-scenario">
+          <value value="&quot;historical&quot;"></value>
+          <value value="&quot;ssp585&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="governance-mode">
+          <value value="&quot;fragmented&quot;"></value>
+          <value value="&quot;integrated&quot;"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="efficiency-gain">
+          <value value="0"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="hectares-per-farmer">
+          <value value="100"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="max-solar-adoption">
+          <value value="0.2"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="no-pump-irrigation-frac">
+          <value value="0.55"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-pump-irrigation-frac">
+          <value value="0.95"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="stress-threshold">
+          <value value="0.8"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="restriction-strength">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="base-conversion-rate">
+          <value value="0.0013"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="urban-pressure-coef">
+          <value value="0.5"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="water-stress-exit-coef">
+          <value value="0.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp245">
+          <value value="1.4"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="warming-ssp585">
+          <value value="2.1"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="et-sensitivity">
+          <value value="0.04"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="climate-onset-year">
+          <value value="2025"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="initial-utilisation">
+          <value value="1.3"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="native-release?">
+          <value value="false"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-start-year">
+          <value value="2018"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-innovation-coef">
+          <value value="0.008"></value>
+        </enumeratedValueSet>
+        <enumeratedValueSet variable="solar-imitation-coef">
+          <value value="0.7"></value>
         </enumeratedValueSet>
       </constants>
     </experiment>

@@ -3,7 +3,7 @@ suppressPackageStartupMessages({
   library(sf); library(readr)
 })
 source(here("analysis", "utils.R"))
-source(here("analysis", "04_figures.R"))  # PALETTE, save_fig (convenção 300 DPI)
+source(here("analysis", "04_figures.R"))
 
 bacia_shp <- st_read(file.path(DIR_RAW, "ANA", "limits_ugrhi6",
                                "06_Bacia_Alto_Tiete.shp"), quiet = TRUE)

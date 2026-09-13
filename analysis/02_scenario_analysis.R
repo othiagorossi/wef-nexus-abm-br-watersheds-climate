@@ -101,8 +101,9 @@ p1 <- ggplot(summ, aes(reorder(scenario, wef_m), wef_m, fill = governance)) +
        subtitle="Mean ± 95% CI, 50 replicates. Energy adoption is the rebound driver (reported separately).",
        x=NULL, y="WF composite index [0–1]", fill="Governance") +
   theme_minimal(base_size=11)
-ggsave(here("outputs","figures","scenario_composite.pdf"), p1,
-       width=19, height=10, units="cm")
+ggsave(here("outputs","figures","scenario_composite.pdf"), p1, width=19, height=10, units="cm")
+ggsave(here("outputs", "figures", "scenario_composite.png"), p1, width = 19, height = 10, units = "cm", dpi = 300)
+
 
 pill <- summ |>
   select(scenario, governance, water=water_m, food=food_m) |>
@@ -112,8 +113,9 @@ p2 <- ggplot(pill, aes(scenario, value, fill=pillar)) +
   labs(title="Water and food pillars by scenario",
        x=NULL, y="Index [0–1]", fill="Pillar") +
   theme_minimal(base_size=11)
-ggsave(here("outputs","figures","scenario_pillars.pdf"), p2,
-       width=19, height=11, units="cm")
+ggsave(here("outputs","figures","scenario_pillars.pdf"), p2, width=19, height=11, units="cm")
+ggsave(here("outputs", "figures", "scenario_pillars.png"), p2, width = 19, height = 11, units = "cm", dpi = 300)
+
 
 message("\n[ok] Figures: scenario_composite.pdf, scenario_pillars.pdf")
 message("[done] 02_scenario_analysis.R")

@@ -1738,13 +1738,13 @@ end]]></code>
           <value value="100"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="solar-start-year">
-          <value value="2013"></value>
+          <value value="2018"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="solar-innovation-coef">
-          <value value="0.003"></value>
+          <value value="0.008"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="solar-imitation-coef">
-          <value value="0.25"></value>
+          <value value="0.7"></value>
         </enumeratedValueSet>
         <enumeratedValueSet variable="max-solar-adoption">
           <value value="0"></value>
